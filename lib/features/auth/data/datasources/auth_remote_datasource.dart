@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mspay/core/constants/api_constants.dart';
 import 'package:mspay/features/auth/data/models/user_model.dart';
 import 'package:mspay/features/auth/data/models/user_profile_model.dart';
@@ -94,10 +95,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         });
       }
     } catch (e) {
-      debugPrint('Native Google Sign-In failed/unsupported: $e. Falling back to web OAuth...');
-      await client.auth.signInWithOAuth(
-        OAuthProvider.google,
-      );
+      debugPrint('Native Google Sign-In failed/unsupported: $e. Falling back to inAppWebView OAuth...');
+      try {
+        final res = await client.auth.getOAuthSignInUrl(
+          provider: OAuthProvider.google,
+          redirectTo: kIsWeb ? null : 'io.supabase.mspay://login-callback',
+        );
+        final uri = Uri.parse(res.url);
+        await launchUrl(
+          uri,
+          mode: LaunchMode.inAppWebView,
+        );
+      } catch (oauthError) {
+        debugPrint('Custom OAuth launch failed: $oauthError. Falling back to default OAuth...');
+        await client.auth.signInWithOAuth(
+          OAuthProvider.google,
+        );
+      }
     }
   }
 
