@@ -267,55 +267,87 @@ class DashboardScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Circular VTpass Services Shortcuts
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildCircularActionItem(
-                          icon: LucideIcons.smartphone,
-                          label: 'Airtime',
-                          color: Colors.green.shade400,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const AirtimeDataScreen(isData: false),
-                            ),
-                          ),
-                        ),
-                        _buildCircularActionItem(
-                          icon: LucideIcons.barChart2,
-                          label: 'Data',
-                          color: Colors.red.shade400,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const AirtimeDataScreen(isData: true),
-                            ),
-                          ),
-                        ),
-                        _buildCircularActionItem(
-                          icon: LucideIcons.zap,
-                          label: 'Electricity',
-                          color: Colors.blue.shade400,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ElectricityScreen(),
-                            ),
-                          ),
-                        ),
-                        _buildCircularActionItem(
-                          icon: LucideIcons.tv,
-                          label: 'Cable TV',
-                          color: Colors.orange.shade400,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const CableTvScreen(),
-                            ),
-                          ),
-                        ),
-                      ],
+                    // Utility Services Section Header
+                    Text(
+                      'Utility Services',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 12),
+                    
+                    // Circular VTpass Services Shortcuts Card
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Theme.of(context).scaffoldBackgroundColor
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.04)
+                              : Colors.grey.shade100,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildCircularActionItem(
+                            icon: LucideIcons.smartphone,
+                            label: 'Airtime',
+                            color: Colors.green.shade400,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const AirtimeDataScreen(isData: false),
+                              ),
+                            ),
+                          ),
+                          _buildCircularActionItem(
+                            icon: LucideIcons.barChart2,
+                            label: 'Data',
+                            color: Colors.red.shade400,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const AirtimeDataScreen(isData: true),
+                              ),
+                            ),
+                          ),
+                          _buildCircularActionItem(
+                            icon: LucideIcons.zap,
+                            label: 'Electricity',
+                            color: Colors.blue.shade400,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ElectricityScreen(),
+                              ),
+                            ),
+                          ),
+                          _buildCircularActionItem(
+                            icon: LucideIcons.tv,
+                            label: 'Cable TV',
+                            color: Colors.orange.shade400,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const CableTvScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
 
                     // Recent Transactions Header
                     Row(
