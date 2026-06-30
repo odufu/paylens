@@ -95,17 +95,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         });
       }
     } catch (e) {
-      debugPrint('Native Google Sign-In failed/unsupported: $e. Falling back to inAppWebView OAuth...');
+      debugPrint('Native Google Sign-In failed/unsupported: $e. Falling back to Chrome-directed OAuth...');
       try {
         final res = await client.auth.getOAuthSignInUrl(
           provider: OAuthProvider.google,
           redirectTo: kIsWeb ? null : 'io.supabase.mspay://login-callback',
         );
-        final uri = Uri.parse(res.url);
-        await launchUrl(
-          uri,
-          mode: LaunchMode.inAppWebView,
-        );
+        final rawUrl = res.url;
+        final chromeUri = Uri.parse('googlechrome://navigate?url=${Uri.encodeComponent(rawUrl)}');
+        
+        if (await canLaunchUrl(chromeUri)) {
+          await launchUrl(chromeUri, mode: LaunchMode.externalApplication);
+        } else {
+          // Fallback to standard external application launch if googlechrome scheme isn't registered
+          final httpsUri = Uri.parse(rawUrl);
+          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+        }
       } catch (oauthError) {
         debugPrint('Custom OAuth launch failed: $oauthError. Falling back to default OAuth...');
         await client.auth.signInWithOAuth(
