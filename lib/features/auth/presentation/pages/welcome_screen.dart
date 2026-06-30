@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_in_screen.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_up_screen.dart';
@@ -138,6 +140,24 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                     child: const Text('Create New Account'),
                   ),
+                  if (kIsWeb) ...[
+                    const SizedBox(height: 16),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final url = Uri.parse('downloads/PayLenses.apk');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        } else {
+                          await launchUrl(url);
+                        }
+                      },
+                      icon: const Icon(Icons.android, color: AppColors.accentLime),
+                      label: const Text(
+                        'Download Android App (APK)',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                 ],
               ),

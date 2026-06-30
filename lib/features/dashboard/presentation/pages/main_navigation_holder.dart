@@ -60,33 +60,34 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
               ),
             )
           : null,
-      bottomNavigationBar: Container(
-        height: 90,
-        decoration: BoxDecoration(
-          color: const Color(0xFF022E1F), // Extra deep forest green for nav bar
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, LucideIcons.home, 'Home'),
-              _buildNavItem(1, LucideIcons.wallet, 'Wallet'),
-              _buildCenterSendButton(),
-              _buildNavItem(3, LucideIcons.history, 'History'),
-              _buildNavItem(4, LucideIcons.user, 'Profile'),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          height: 72,
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF022E1F), // Extra deep forest green
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 12,
+                spreadRadius: 1,
+                offset: const Offset(0, 4),
+              ),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(0, LucideIcons.home, 'Home'),
+                _buildNavItem(1, LucideIcons.wallet, 'Wallet'),
+                _buildCenterSendButton(),
+                _buildNavItem(3, LucideIcons.barChart2, 'Analytics'),
+                _buildNavItem(4, LucideIcons.creditCard, 'Card'),
+              ],
+            ),
           ),
         ),
       ),
@@ -100,24 +101,18 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: isActive ? AppColors.primaryForest : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withOpacity(0.6),
-              size: 24,
-            ),
+          Icon(
+            icon,
+            color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withOpacity(0.6),
+            size: 24,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withOpacity(0.6),
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
@@ -131,31 +126,31 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
     return GestureDetector(
       onTap: () => _onTabSelected(2),
       child: Transform.translate(
-        offset: const Offset(0, -10), // Float it upwards slightly
+        offset: const Offset(0, -6),
         child: Container(
-          width: 56,
-          height: 56,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             color: AppColors.accentLime,
             shape: BoxShape.circle,
             border: Border.all(
               color: const Color(0xFF022E1F),
-              width: 4,
+              width: 3,
             ),
             boxShadow: [
               BoxShadow(
                 color: AppColors.accentLime.withOpacity(0.3),
-                blurRadius: 8,
-                spreadRadius: 2,
-                offset: const Offset(0, 4),
+                blurRadius: 6,
+                spreadRadius: 1,
+                offset: const Offset(0, 3),
               )
             ],
           ),
           child: const Center(
             child: Icon(
-              LucideIcons.send,
+              LucideIcons.sendHorizontal,
               color: Color(0xFF022E1F),
-              size: 24,
+              size: 22,
             ),
           ),
         ),

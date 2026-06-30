@@ -1,29 +1,49 @@
-name: Deploy React Landing Page to GitHub Pages
+name: Deploy Pay Lenses to GitHub Pages
 
 on:
   push:
     branches:
       - main
+      - master
 
 permissions:
   contents: write
 
 jobs:
   build-and-deploy:
-    concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Install and Build 🔧
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Web
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Copy APK to Web build folder
         run: |
-          cd landing-page
-          npm install
-          npm run build
+          mkdir -p build/web/downloads
+          cp build/app/outputs/flutter-apk/app-release.apk build/web/downloads/PayLenses.apk
 
-      - name: Deploy 🚀
+      - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: landing-page/dist
+          folder: build/web
           branch: gh-pages
