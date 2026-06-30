@@ -144,7 +144,7 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     TextButton.icon(
                       onPressed: () async {
-                        final url = Uri.parse('downloads/PayLenses.apk');
+                        final url = Uri.parse('PayLense.apk');
                         if (await canLaunchUrl(url)) {
                           await launchUrl(url, mode: LaunchMode.externalApplication);
                         } else {

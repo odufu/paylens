@@ -268,15 +268,15 @@ class DashboardScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Utility Services Section Header
-                    Text(
-                      'Utility Services',
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    
+                    // Text(
+                    //   'Utility Services',
+                    //   style: textTheme.titleMedium?.copyWith(
+                    //     fontWeight: FontWeight.bold,
+                    //     fontSize: 16,
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 12),
+
                     // Circular VTpass Services Shortcuts Card
                     Container(
                       decoration: BoxDecoration(
@@ -298,7 +298,10 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 8,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [

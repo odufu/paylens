@@ -318,7 +318,7 @@ function App() {
             <p style={{ color: 'var(--text-grey)', maxWidth: '600px', margin: '0 auto 24px' }}>
               Download the compiled Pay Lenses Android debug APK directly to test the Google Sign-In flow, virtual wallet simulation, and bill payments.
             </p>
-            <a href="./assets/app-release.apk" download className="btn btn-primary">
+            <a href="./PayLense.apk" download="PayLense.apk" className="btn btn-primary">
               📥 Download Android APK (Release)
             </a>
           </div>

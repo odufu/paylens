@@ -31,19 +31,26 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Web
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
-
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Copy APK to Web build folder
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Build Vite Landing Page
         run: |
-          mkdir -p build/web/downloads
-          cp build/app/outputs/flutter-apk/app-release.apk build/web/downloads/PayLenses.apk
+          cd landing-page
+          npm install
+          npm run build
+
+      - name: Copy APK to Landing Page build folder
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk landing-page/dist/PayLense.apk
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: build/web
+          folder: landing-page/dist
           branch: gh-pages
