@@ -6,7 +6,10 @@ class SupabaseService {
   static const String supabaseAnonKey = ApiConstants.supabaseAnonKey;
 
   static Future<void> initialize() async {
-    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
   }
 
   static SupabaseClient get client => Supabase.instance.client;
