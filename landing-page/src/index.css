@@ -711,3 +711,14 @@ footer {
     justify-content: center;
   }
 }
+
+/* Gallery Section Hover Effects */
+.gallery-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(204, 255, 0, 0.3) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(204, 255, 0, 0.05);
+}
+
+.gallery-card:hover .gallery-img {
+  transform: scale(1.05);
+}

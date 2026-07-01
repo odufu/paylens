@@ -1,0 +1,2 @@
+This is a placeholder for the Pay Lenses APK. 
+During production CI/CD deployments, the actual compiled Android release APK will replace this file.
