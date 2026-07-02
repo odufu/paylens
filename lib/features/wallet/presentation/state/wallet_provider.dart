@@ -344,6 +344,69 @@ class WalletProvider extends ChangeNotifier {
     return true;
   }
 
+  /// Logs a failed bill transaction and automatically creates a support ticket in Supabase
+  Future<String?> logFailedTransaction({
+    required double amount,
+    required String serviceName,
+    required String billDetails,
+    required TransactionCategory category,
+    required String errorReason,
+  }) async {
+    final uid = _userId;
+    final txId = _uuid.v4();
+    final reference = 'VTP-FAIL-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final ticketId = '#TKT-${(10000 + (_uuid.v4().hashCode % 90000)).abs()}';
+
+    if (uid != null) {
+      try {
+        // 1. Insert failed transaction record (do NOT deduct balance!)
+        await SupabaseService.client.from('transactions').insert({
+          'id': txId,
+          'profile_id': uid,
+          'title': serviceName,
+          'subtitle': '$billDetails (Failed: $errorReason)',
+          'amount': -amount,
+          'category': category.name,
+          'status': 'failed',
+          'reference': reference,
+          'provider': 'VTPass',
+        });
+
+        // 2. Insert Support Ticket referencing the failed transaction
+        await SupabaseService.client.from('support_tickets').insert({
+          'id': ticketId,
+          'profile_id': uid,
+          'transaction_id': txId,
+          'title': 'Failed $serviceName',
+          'description': 'Automated Ticket: Attempted to pay ₦$amount for $billDetails. API returned error: "$errorReason".',
+          'status': 'escalated',
+        });
+
+        await _syncWithSupabase();
+        return ticketId;
+      } catch (e) {
+        debugPrint('Failed to log transaction error in Supabase: $e');
+      }
+    }
+
+    // Local fallback support logging
+    final tx = TransactionModel(
+      id: txId,
+      title: serviceName,
+      subtitle: '$billDetails (Failed: $errorReason)',
+      amount: -amount,
+      date: DateTime.now(),
+      category: category,
+      status: TransactionStatus.failed,
+      reference: reference,
+      provider: 'VTPass',
+    );
+    _transactions.insert(0, tx);
+    await _saveLocalState();
+    notifyListeners();
+    return ticketId;
+  }
+
   // --- LOCAL FALLBACK STATE PERSISTENCE ---
 
   Future<void> _loadLocalState() async {

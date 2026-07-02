@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mspay/core/constants/app_colors.dart';
+import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_in_screen.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_up_screen.dart';
 
@@ -28,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Subtle background decorative circles for a premium aesthetic
           Positioned(
             top: -100,
@@ -46,37 +47,33 @@ class WelcomeScreen extends StatelessWidget {
               backgroundColor: AppColors.accentLime.withOpacity(0.02),
             ),
           ),
-          
+
           // Content Layout
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(flex: 2),
-                  
+
                   // App Branding Logo Placeholder
                   Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.accentLime.withOpacity(0.2),
-                          width: 1.5,
+                    child: AnimatedLogoBorder(
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.transparent,
+                        backgroundImage: const AssetImage(
+                          'assets/images/logo.png',
                         ),
-                      ),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 64,
-                        height: 64,
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Brand Name and Caption
                   Center(
                     child: Text(
@@ -100,9 +97,9 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   const Spacer(flex: 3),
-                  
+
                   // CTAs
                   ElevatedButton(
                     onPressed: () {
@@ -122,7 +119,7 @@ class WelcomeScreen extends StatelessWidget {
                     child: const Text('Log In to Account'),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   OutlinedButton(
                     onPressed: () {
                       Navigator.push(
@@ -146,15 +143,24 @@ class WelcomeScreen extends StatelessWidget {
                       onPressed: () async {
                         final url = Uri.parse('PayLense.apk');
                         if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
                         } else {
                           await launchUrl(url);
                         }
                       },
-                      icon: const Icon(Icons.android, color: AppColors.accentLime),
+                      icon: const Icon(
+                        Icons.android,
+                        color: AppColors.accentLime,
+                      ),
                       label: const Text(
                         'Download Android App (APK)',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],

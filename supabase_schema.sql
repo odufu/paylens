@@ -1,6 +1,7 @@
 -- SQL Schema Setup for Lush Fintech
--- This script creates the tables and sets up Row Level Security (RLS) policies.
--- Copy and run this inside the Supabase SQL Editor.
+-- This script creates the tables and sets up secure Row Level Security (RLS) policies.
+-- This script is idempotent (safe to run multiple times without causing duplicate policy/trigger errors).
+-- Copy and run this inside your Supabase SQL Editor.
 
 -- 1. Create Profiles Table (extends Supabase Auth users)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -49,15 +50,20 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- 5. Enable Row Level Security (RLS) on all tables
+-- 5. Enable Row Level Security (RLS) on all tables (safe to run repeatedly)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.beneficiaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
 
--- 6. RLS Policies
+-- 6. RLS Policies (Cleanly drop existing policies and recreate them to prevent duplicate errors)
 
 -- Profiles Policies
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public insert on sign up trigger" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert/upsert their own profile" ON public.profiles;
+
 CREATE POLICY "Users can view their own profile" 
     ON public.profiles FOR SELECT 
     USING (auth.uid() = id);
@@ -66,11 +72,14 @@ CREATE POLICY "Users can update their own profile"
     ON public.profiles FOR UPDATE 
     USING (auth.uid() = id);
 
-CREATE POLICY "Allow public insert on sign up trigger"
+CREATE POLICY "Users can insert/upsert their own profile"
     ON public.profiles FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() = id);
 
 -- Transactions Policies
+DROP POLICY IF EXISTS "Users can view their own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON public.transactions;
+
 CREATE POLICY "Users can view their own transactions" 
     ON public.transactions FOR SELECT 
     USING (auth.uid() = profile_id);
@@ -80,6 +89,9 @@ CREATE POLICY "Users can insert their own transactions"
     WITH CHECK (auth.uid() = profile_id);
 
 -- Beneficiaries Policies
+DROP POLICY IF EXISTS "Users can view their own beneficiaries" ON public.beneficiaries;
+DROP POLICY IF EXISTS "Users can manage their own beneficiaries" ON public.beneficiaries;
+
 CREATE POLICY "Users can view their own beneficiaries" 
     ON public.beneficiaries FOR SELECT 
     USING (auth.uid() = profile_id);
@@ -89,6 +101,9 @@ CREATE POLICY "Users can manage their own beneficiaries"
     USING (auth.uid() = profile_id);
 
 -- Support Tickets Policies
+DROP POLICY IF EXISTS "Users can view their own support tickets" ON public.support_tickets;
+DROP POLICY IF EXISTS "Users can create support tickets" ON public.support_tickets;
+
 CREATE POLICY "Users can view their own support tickets" 
     ON public.support_tickets FOR SELECT 
     USING (auth.uid() = profile_id);
@@ -113,6 +128,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
+-- Re-create the trigger on auth.users table
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

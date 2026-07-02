@@ -320,30 +320,39 @@ class ReceiptModal extends StatelessWidget {
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: TextStyle(color: labelColor, fontSize: 13, fontWeight: FontWeight.w500),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: TextStyle(color: valueColor, fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-            if (isCopyable && onCopy != null) ...[
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: onCopy,
-                child: Icon(
-                  LucideIcons.copy,
-                  color: labelColor,
-                  size: 14,
+        const SizedBox(width: 16),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(color: valueColor, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
+              if (isCopyable && onCopy != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onCopy,
+                  child: Icon(
+                    LucideIcons.copy,
+                    color: labelColor,
+                    size: 14,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );

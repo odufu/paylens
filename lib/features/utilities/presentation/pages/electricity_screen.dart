@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
+import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
-import 'package:mspay/features/utilities/data/datasources/vtpass_simulator.dart';
+import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
 
 class ElectricityScreen extends StatefulWidget {
@@ -76,22 +77,46 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
       _isVerified = false;
     });
 
-    final result = await VtPassSimulator.validateMeter(
-      meterNumber: meterNo,
-      discoCode: _discoCode,
-    );
+    // 1. Try to auto-detect the Disco provider first by validating across all available Discos in parallel
+    final detectResult = await VtPassService.autoDetectDisco(meterNumber: meterNo);
 
     if (mounted) {
-      setState(() {
-        _isValidating = false;
-        if (result.isValid) {
+      if (detectResult != null) {
+        final String detectedCode = detectResult['discoCode'];
+        final MeterValidationResult validation = detectResult['validationResult'];
+        
+        // Find matching key for the dropdown UI
+        final String detectedDisplayName = _discos.keys.firstWhere(
+          (k) => _discos[k] == detectedCode,
+          orElse: () => _discos.keys.first,
+        );
+
+        setState(() {
+          _isValidating = false;
           _isVerified = true;
-          _verifiedCustomerName = result.customerName;
-          _verifiedAddress = result.address;
-        } else {
-          _validationError = result.error;
-        }
-      });
+          _discoCode = detectedCode;
+          _selectedDisco = detectedDisplayName;
+          _verifiedCustomerName = validation.customerName;
+          _verifiedAddress = validation.address;
+        });
+      } else {
+        // 2. Fallback to validating the manually selected Disco if auto-detect fails
+        final result = await VtPassService.validateMeter(
+          meterNumber: meterNo,
+          discoCode: _discoCode,
+        );
+
+        setState(() {
+          _isValidating = false;
+          if (result.isValid) {
+            _isVerified = true;
+            _verifiedCustomerName = result.customerName;
+            _verifiedAddress = result.address;
+          } else {
+            _validationError = 'Meter number could not be auto-detected or verified. Please check the number or select your provider manually.';
+          }
+        });
+      }
     }
   }
 
@@ -114,18 +139,16 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     setState(() {
       _isPaying = true;
     });
+    BrandedLoadingOverlay.show(context, message: 'Processing payment...');
 
-    final purchaseResult = await VtPassSimulator.purchaseProduct(
+    final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: 'Electricity',
       target: _meterController.text.trim(),
       amount: amount,
+      providerName: _discoCode,
     );
 
     if (mounted) {
-      setState(() {
-        _isPaying = false;
-      });
-
       if (purchaseResult.success) {
         final bool success = await walletProvider.payBill(
           amount: amount,
@@ -134,21 +157,48 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           category: TransactionCategory.bills,
         );
 
-        if (success && mounted) {
-          ReceiptModal.show(
-            context,
-            serviceTitle: 'Electricity Bill ($_selectedDisco)',
-            recipient: '$_verifiedCustomerName (${_meterController.text})',
-            amount: amount,
-            transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
-            token: purchaseResult.token,
-            providerName: 'VTPass',
-          );
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          if (success) {
+            ReceiptModal.show(
+              context,
+              serviceTitle: 'Electricity Bill ($_selectedDisco)',
+              recipient: '$_verifiedCustomerName (${_meterController.text})',
+              amount: amount,
+              transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
+              token: purchaseResult.token,
+              providerName: 'VTPass',
+            );
+          }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(purchaseResult.error ?? 'Transaction failed. Please try again.')),
+        final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
+        
+        final ticketId = await walletProvider.logFailedTransaction(
+          amount: amount,
+          serviceName: 'Electricity Bill ($_selectedDisco)',
+          billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
+          category: TransactionCategory.bills,
+          errorReason: errorMsg,
         );
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          FailureDialog.show(
+            context,
+            title: 'Payment Failed',
+            message: errorMsg,
+            ticketId: ticketId ?? '#TKT-UNKNOWN',
+          );
+        }
       }
     }
   }

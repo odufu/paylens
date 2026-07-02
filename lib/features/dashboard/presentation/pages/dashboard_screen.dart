@@ -12,6 +12,7 @@ import 'package:mspay/features/wallet/presentation/pages/transaction_history_scr
 import 'package:mspay/features/utilities/presentation/pages/airtime_data_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/electricity_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/cable_tv_screen.dart';
+import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -60,31 +61,39 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.accentLime,
-                                    width: 1.5,
+                              GestureDetector(
+                                onTap: () {
+                                  context
+                                      .findAncestorStateOfType<
+                                          MainNavigationHolderState>()
+                                      ?.onTabSelected(4);
+                                },
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.accentLime,
+                                      width: 1.5,
+                                    ),
                                   ),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: authProvider.avatarUrl != null
-                                      ? Image.network(
-                                          authProvider.avatarUrl!,
-                                          width: 40,
-                                          height: 40,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  _buildInitialsAvatar(
-                                                    shortInitials,
-                                                  ),
-                                        )
-                                      : _buildInitialsAvatar(shortInitials),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: authProvider.avatarUrl != null
+                                        ? Image.network(
+                                            authProvider.avatarUrl!,
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    _buildInitialsAvatar(
+                                                      shortInitials,
+                                                    ),
+                                          )
+                                        : _buildInitialsAvatar(shortInitials),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -306,6 +315,7 @@ class DashboardScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _buildCircularActionItem(
+                            context,
                             icon: LucideIcons.smartphone,
                             label: 'Airtime',
                             color: Colors.green.shade400,
@@ -317,6 +327,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           _buildCircularActionItem(
+                            context,
                             icon: LucideIcons.barChart2,
                             label: 'Data',
                             color: Colors.red.shade400,
@@ -328,6 +339,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           _buildCircularActionItem(
+                            context,
                             icon: LucideIcons.zap,
                             label: 'Electricity',
                             color: Colors.blue.shade400,
@@ -338,6 +350,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           _buildCircularActionItem(
+                            context,
                             icon: LucideIcons.tv,
                             label: 'Cable TV',
                             color: Colors.orange.shade400,
@@ -495,7 +508,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularActionItem({
+  Widget _buildCircularActionItem(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required Color color,
@@ -518,8 +532,10 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textDark,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? const Color(0xFFF0F4F2) 
+                  : AppColors.textDark,
               fontWeight: FontWeight.w600,
               fontSize: 13,
             ),
@@ -598,10 +614,12 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 Text(
                   tx.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: AppColors.textDark,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? const Color(0xFFF0F4F2) 
+                        : AppColors.textDark,
                   ),
                 ),
                 const SizedBox(height: 4),

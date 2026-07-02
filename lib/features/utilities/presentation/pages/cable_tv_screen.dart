@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
+import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
-import 'package:mspay/features/utilities/data/datasources/vtpass_simulator.dart';
+import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
 
 class CableTvScreen extends StatefulWidget {
@@ -86,7 +87,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
       _isVerified = false;
     });
 
-    final result = await VtPassSimulator.validateSmartcard(
+    final result = await VtPassService.validateSmartcard(
       smartcardNumber: cardNo,
       provider: _selectedProvider,
     );
@@ -124,18 +125,17 @@ class _CableTvScreenState extends State<CableTvScreen> {
     setState(() {
       _isPaying = true;
     });
+    BrandedLoadingOverlay.show(context, message: 'Processing subscription...');
 
-    final purchaseResult = await VtPassSimulator.purchaseProduct(
+    final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: 'Cable TV',
       target: _smartcardController.text.trim(),
       amount: amount,
+      providerName: _selectedProvider,
+      packageName: _selectedPackage!['name'],
     );
 
     if (mounted) {
-      setState(() {
-        _isPaying = false;
-      });
-
       if (purchaseResult.success) {
         final bool success = await walletProvider.payBill(
           amount: amount,
@@ -144,20 +144,47 @@ class _CableTvScreenState extends State<CableTvScreen> {
           category: TransactionCategory.bills,
         );
 
-        if (success && mounted) {
-          ReceiptModal.show(
-            context,
-            serviceTitle: '$_selectedProvider Subscription',
-            recipient: '$_verifiedCustomerName (${_smartcardController.text})',
-            amount: amount,
-            transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
-            providerName: 'VTPass',
-          );
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          if (success) {
+            ReceiptModal.show(
+              context,
+              serviceTitle: '$_selectedProvider Subscription',
+              recipient: '$_verifiedCustomerName (${_smartcardController.text})',
+              amount: amount,
+              transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
+              providerName: 'VTPass',
+            );
+          }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(purchaseResult.error ?? 'Transaction failed. Please try again.')),
+        final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
+        
+        final ticketId = await walletProvider.logFailedTransaction(
+          amount: amount,
+          serviceName: '$_selectedProvider Subscription',
+          billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']}',
+          category: TransactionCategory.bills,
+          errorReason: errorMsg,
         );
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          FailureDialog.show(
+            context,
+            title: 'Payment Failed',
+            message: errorMsg,
+            ticketId: ticketId ?? '#TKT-UNKNOWN',
+          );
+        }
       }
     }
   }
@@ -217,7 +244,9 @@ class _CableTvScreenState extends State<CableTvScreen> {
                         child: Text(
                           prov,
                           style: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.textDark,
+                            color: isSelected 
+                                ? Colors.white 
+                                : (Theme.of(context).brightness == Brightness.dark ? const Color(0xFFF0F4F2) : AppColors.textDark),
                             fontWeight: FontWeight.bold,
                           ),
                         ),

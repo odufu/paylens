@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
+import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -28,11 +29,13 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
+      BrandedLoadingOverlay.show(context, message: 'Logging in...');
       await authProvider.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
       if (mounted) {
+        BrandedLoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged in successfully!')),
         );
@@ -41,6 +44,7 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       if (mounted) {
+        BrandedLoadingOverlay.hide(context);
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -188,8 +192,10 @@ class _SignInScreenState extends State<SignInScreen> {
                         ? null
                         : () async {
                             try {
+                              BrandedLoadingOverlay.show(context, message: 'Authenticating...');
                               await authProvider.signInWithGoogle();
                               if (mounted) {
+                                BrandedLoadingOverlay.hide(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Logging in with Google...')),
                                 );
@@ -197,6 +203,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               }
                             } catch (e) {
                               if (mounted) {
+                                BrandedLoadingOverlay.hide(context);
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(

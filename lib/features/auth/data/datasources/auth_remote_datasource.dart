@@ -91,6 +91,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await client.from('profiles').upsert({
           'id': loggedInUser.id,
           'full_name': displayName,
+          'email': loggedInUser.email ?? googleUser.email,
           if (photoUrl != null) 'avatar_url': photoUrl,
         });
       }
@@ -191,6 +192,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final Map<String, dynamic> newProfile = {
           'id': userId,
           'full_name': fullName,
+          'email': user.email ?? '',
           if (avatarUrl != null) 'avatar_url': avatarUrl,
         };
         
@@ -219,7 +221,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         }
 
         if (needsUpdate) {
-          await client.from('profiles').upsert(updates);
+          await client.from('profiles').update(updates).eq('id', userId);
           data = {...data, ...updates};
         }
       }

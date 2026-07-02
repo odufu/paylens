@@ -12,10 +12,10 @@ class MainNavigationHolder extends StatefulWidget {
   const MainNavigationHolder({super.key});
 
   @override
-  State<MainNavigationHolder> createState() => _MainNavigationHolderState();
+  State<MainNavigationHolder> createState() => MainNavigationHolderState();
 }
 
-class _MainNavigationHolderState extends State<MainNavigationHolder> {
+class MainNavigationHolderState extends State<MainNavigationHolder> {
   int _currentIndex = 0;
 
   late final List<Widget> _pages;
@@ -32,7 +32,7 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
     ];
   }
 
-  void _onTabSelected(int index) {
+  void onTabSelected(int index) {
     setState(() {
       _currentIndex = index;
     });
@@ -84,8 +84,8 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
                 _buildNavItem(0, LucideIcons.home, 'Home'),
                 _buildNavItem(1, LucideIcons.wallet, 'Wallet'),
                 _buildCenterSendButton(),
-                _buildNavItem(3, LucideIcons.barChart2, 'Analytics'),
-                _buildNavItem(4, LucideIcons.creditCard, 'Card'),
+                _buildNavItem(3, LucideIcons.history, 'History'),
+                _buildNavItem(4, LucideIcons.user, 'Profile'),
               ],
             ),
           ),
@@ -97,7 +97,7 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
   Widget _buildNavItem(int index, IconData icon, String label) {
     final bool isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: () => _onTabSelected(index),
+      onTap: () => onTabSelected(index),
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -124,7 +124,7 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
 
   Widget _buildCenterSendButton() {
     return GestureDetector(
-      onTap: () => _onTabSelected(2),
+      onTap: () => onTabSelected(2),
       child: Transform.translate(
         offset: const Offset(0, -6),
         child: Container(

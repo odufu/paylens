@@ -59,120 +59,128 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header indicator
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Status Badge & Title
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Transaction Details',
-                    style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.successGreen.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
+                  // Header indicator
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    child: const Row(
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Status Badge & Title
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Transaction Details',
+                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.successGreen.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          children: [
+                            CircleAvatar(radius: 3, backgroundColor: AppColors.successGreen),
+                            SizedBox(width: 6),
+                            Text(
+                              'Successful',
+                              style: TextStyle(
+                                color: AppColors.successGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Amount Display
+                  Center(
+                    child: Column(
                       children: [
-                        CircleAvatar(radius: 3, backgroundColor: AppColors.successGreen),
-                        SizedBox(width: 6),
                         Text(
-                          'Successful',
+                          isCredit ? 'Amount Credited' : 'Amount Debited',
+                          style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          (isCredit ? '+' : '-') + CurrencyFormatter.format(tx.amount.abs()),
                           style: TextStyle(
-                            color: AppColors.successGreen,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: isCredit ? AppColors.successGreen : AppColors.errorRed,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Amount Display
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      isCredit ? 'Amount Credited' : 'Amount Debited',
-                      style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      (isCredit ? '+' : '-') + CurrencyFormatter.format(tx.amount.abs()),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: isCredit ? AppColors.successGreen : AppColors.errorRed,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Detail list
-              _buildDetailRow('Description', tx.title),
-              _buildDetailRow('Detail', tx.subtitle),
-              _buildDetailRow('Reference ID', tx.reference),
-              _buildDetailRow('Payment Provider', tx.provider),
-              _buildDetailRow('Date & Time', DateFormat('MMM dd, yyyy • hh:mm a').format(tx.date)),
-              
-              const SizedBox(height: 24),
-              
-              // CTA: Report Issue
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context); // Close bottom sheet
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ChatbotScreen(
-                              initialText: 'I want to report an issue with my transaction.',
-                            ),
+                  const SizedBox(height: 24),
+                  
+                  // Detail list
+                  _buildDetailRow('Description', tx.title),
+                  _buildDetailRow('Detail', tx.subtitle),
+                  _buildDetailRow('Reference ID', tx.reference),
+                  _buildDetailRow('Payment Provider', tx.provider),
+                  _buildDetailRow('Date & Time', DateFormat('MMM dd, yyyy • hh:mm a').format(tx.date)),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // CTA: Report Issue
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context); // Close bottom sheet
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ChatbotScreen(
+                                  initialText: 'I want to report an issue with my transaction.',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(LucideIcons.alertTriangle, color: Colors.orange),
+                          label: const Text('Report Technical Issue', style: TextStyle(color: Colors.orange)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.orange),
                           ),
-                        );
-                      },
-                      icon: const Icon(LucideIcons.alertTriangle, color: Colors.orange),
-                      label: const Text('Report Technical Issue', style: TextStyle(color: Colors.orange)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.orange),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
                 ],
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         );
       },
@@ -184,11 +192,22 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: const TextStyle(color: AppColors.textGrey, fontSize: 13)),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 13),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontWeight: FontWeight.w600, 
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? const Color(0xFFF0F4F2) 
+                    : AppColors.textDark, 
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
@@ -396,7 +415,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         ),
         title: Text(
           tx.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textDark),
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: 14, 
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? const Color(0xFFF0F4F2) 
+                : AppColors.textDark,
+          ),
         ),
         subtitle: Text(
           tx.subtitle,
