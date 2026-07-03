@@ -125,7 +125,7 @@ function App() {
         <div className="section-container">
           <div className="section-header">
             <span className="section-subtitle">THE CORE PILLARS</span>
-            <h2 className="section-title">What You Will Master</h2>
+            <h2 className="section-title">Master Flutter Fintech App Development</h2>
           </div>
           <div className="pillars-grid">
             <div className="pillar-card">
@@ -156,11 +156,11 @@ function App() {
       <section className="arch" id="architecture">
         <div className="section-container arch-layout">
           <div className="arch-diagram">
-            <img src="./assets/images/clean_arch_diagram.png" alt="Clean Architecture concentric layers diagram" />
+            <img src="./assets/images/clean_arch_diagram.png" alt="Flutter Clean Architecture concentric layers diagram: Domain, Data, and Presentation" title="Flutter Clean Architecture Layers Diagram" />
           </div>
           <div className="arch-content">
             <span className="section-subtitle">COMPLIANT ENGINEERING</span>
-            <h2 className="section-title" style={{ marginBottom: '32px' }}>Production-Grade Architecture</h2>
+            <h2 className="section-title" style={{ marginBottom: '32px' }}>Fintech Production-Grade Clean Architecture</h2>
 
             <div className="arch-feature">
               <h3>Strict Dependency Rules</h3>
@@ -185,7 +185,7 @@ function App() {
         <div className="section-container">
           <div className="section-header">
             <span className="section-subtitle">SCREENSHOTS</span>
-            <h2 className="section-title">App Interface Showcase</h2>
+            <h2 className="section-title">Interactive Fintech App Interface Showcase</h2>
           </div>
           <div style={{
             display: 'grid',
@@ -230,7 +230,8 @@ function App() {
                 <div style={{ overflow: 'hidden', height: '380px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080d16' }}>
                   <img
                     src={item.img}
-                    alt={item.title}
+                    alt={`Pay Lenses App Screenshot - ${item.title}`}
+                    title={`Pay Lenses App Screenshot - ${item.title}`}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -255,7 +256,7 @@ function App() {
         <div className="section-container">
           <div className="section-header">
             <span className="section-subtitle">THE LEARNING FUNNEL</span>
-            <h2 className="section-title">Masterclass Syllabus</h2>
+            <h2 className="section-title">Comprehensive Fintech Masterclass Syllabus</h2>
           </div>
 
           <div className="curriculum-accordion">
@@ -372,7 +373,7 @@ function App() {
         <div className="section-container">
           <div className="section-header">
             <span className="section-subtitle">SEE IT IN ACTION</span>
-            <h2 className="section-title">Watch the Demo & Download the App</h2>
+            <h2 className="section-title">Watch Core App Demo & Download Android APK</h2>
           </div>
 
           <div className="carousel-viewport">
@@ -408,7 +409,7 @@ function App() {
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '48px' }}>
-            <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Test the App on Your Phone</h3>
+            <h3 style={{ fontSize: '24px', marginBottom: '16px' }}>Download Android APK & Test Mobile App Live</h3>
             <p style={{ color: 'var(--text-grey)', maxWidth: '600px', margin: '0 auto 24px' }}>
               Download the compiled Pay Lenses Android debug APK directly to test the Google Sign-In flow, virtual wallet simulation, and bill payments.
             </p>
