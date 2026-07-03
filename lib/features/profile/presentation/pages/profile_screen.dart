@@ -6,6 +6,7 @@ import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
+import 'package:mspay/features/profile/presentation/pages/in_app_documentation_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -389,6 +390,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Icon(LucideIcons.fileText, color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Developer Documentation'),
+                      subtitle: const Text('In-app service & API guides'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
                         );
                       },
                     ),

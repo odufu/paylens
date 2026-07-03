@@ -7,6 +7,8 @@ import 'package:mspay/features/wallet/presentation/pages/transfer_screen.dart';
 import 'package:mspay/features/wallet/presentation/pages/transaction_history_screen.dart';
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
 import 'package:mspay/features/profile/presentation/pages/profile_screen.dart';
+import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/airtime_to_cash_screen.dart';
 
 class MainNavigationHolder extends StatefulWidget {
   const MainNavigationHolder({super.key});
@@ -26,7 +28,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
     _pages = [
       const DashboardScreen(),
       const FundWalletScreen(), // Wallet tab displays Monify Virtual Accounts details
-      const TransferScreen(),   // Center Send button triggers transfer screen
+      const AirtimeToCashScreen(), // Center tab displays the app USP
       const TransactionHistoryScreen(), // Services/History tab (using History for detail here)
       const ProfileScreen(),            // Profile Screen
     ];
@@ -148,7 +150,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
           ),
           child: const Center(
             child: Icon(
-              LucideIcons.sendHorizontal,
+              LucideIcons.repeat,
               color: Color(0xFF022E1F),
               size: 22,
             ),

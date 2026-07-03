@@ -13,6 +13,8 @@ import 'package:mspay/features/utilities/presentation/pages/airtime_data_screen.
 import 'package:mspay/features/utilities/presentation/pages/electricity_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/cable_tv_screen.dart';
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
+import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/airtime_to_cash_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -65,7 +67,8 @@ class DashboardScreen extends StatelessWidget {
                                 onTap: () {
                                   context
                                       .findAncestorStateOfType<
-                                          MainNavigationHolderState>()
+                                        MainNavigationHolderState
+                                      >()
                                       ?.onTabSelected(4);
                                 },
                                 child: Container(
@@ -212,6 +215,7 @@ class DashboardScreen extends StatelessWidget {
                       const SizedBox(height: 24),
 
                       // Your Wallet (Monnify Services)
+                      // Most Popular Transactions
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -223,7 +227,7 @@ class DashboardScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Your Wallet (Monnify)',
+                              'Most Popular Transactions',
                               style: TextStyle(
                                 color: AppColors.textLightGrey,
                                 fontSize: 12,
@@ -235,19 +239,61 @@ class DashboardScreen extends StatelessWidget {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  _buildWalletCurrencyPill(
-                                    label: 'Wema Bank',
-                                    isActive: true,
+                                  _buildPopularTransactionPill(
+                                    label: 'MTN Data',
+                                    icon: LucideIcons.smartphone,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AirtimeDataScreen(
+                                          isData: true,
+                                          initialProvider: 'MTN',
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  _buildWalletCurrencyPill(
-                                    label: 'Card Payment',
-                                    isActive: false,
+                                  _buildPopularTransactionPill(
+                                    label: 'Airtel Airtime',
+                                    icon: LucideIcons.phone,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AirtimeDataScreen(
+                                          isData: false,
+                                          initialProvider: 'Airtel',
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  _buildWalletCurrencyPill(
-                                    label: 'Bank Transfer',
-                                    isActive: false,
+                                  _buildPopularTransactionPill(
+                                    label: 'Glo Data',
+                                    icon: LucideIcons.smartphone,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AirtimeDataScreen(
+                                          isData: true,
+                                          initialProvider: 'Glo',
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  _buildAddWalletButton(),
+                                  _buildPopularTransactionPill(
+                                    label: 'Electricity',
+                                    icon: LucideIcons.zap,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ElectricityScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                  _buildPopularTransactionPill(
+                                    label: 'Cable TV',
+                                    icon: LucideIcons.tv,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const CableTvScreen(),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -279,14 +325,7 @@ class DashboardScreen extends StatelessWidget {
                     // Utility Services Section Header
                     // Text(
                     //   'Utility Services',
-                    //   style: textTheme.titleMedium?.copyWith(
-                    //     fontWeight: FontWeight.bold,
-                    //     fontSize: 16,
-                    //   ),
-                    // ),
-                    // const SizedBox(height: 12),
-
-                    // Circular VTpass Services Shortcuts Card
+                    // Circular VTpass Services Shortcuts Card (Grid of 8 items in 2 rows)
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark
@@ -311,54 +350,114 @@ class DashboardScreen extends StatelessWidget {
                         vertical: 20,
                         horizontal: 8,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
                         children: [
-                          _buildCircularActionItem(
-                            context,
-                            icon: LucideIcons.smartphone,
-                            label: 'Airtime',
-                            color: Colors.green.shade400,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const AirtimeDataScreen(isData: false),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.smartphone,
+                                label: 'Airtime',
+                                color: Colors.green.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AirtimeDataScreen(isData: false),
+                                  ),
+                                ),
                               ),
-                            ),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.barChart2,
+                                label: 'Data',
+                                color: Colors.red.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AirtimeDataScreen(isData: true),
+                                  ),
+                                ),
+                              ),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.zap,
+                                label: 'Electricity',
+                                color: Colors.blue.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ElectricityScreen(),
+                                  ),
+                                ),
+                              ),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.tv,
+                                label: 'Cable TV',
+                                color: Colors.orange.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CableTvScreen(),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          _buildCircularActionItem(
-                            context,
-                            icon: LucideIcons.barChart2,
-                            label: 'Data',
-                            color: Colors.red.shade400,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const AirtimeDataScreen(isData: true),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.repeat,
+                                label: 'Airtime 2 Cash',
+                                color: Colors.purple.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const AirtimeToCashScreen(),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          _buildCircularActionItem(
-                            context,
-                            icon: LucideIcons.zap,
-                            label: 'Electricity',
-                            color: Colors.blue.shade400,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ElectricityScreen(),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.plane,
+                                label: 'Book Flights',
+                                color: Colors.teal.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ComingSoonScreen(
+                                      featureName: 'Flight Booking',
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          _buildCircularActionItem(
-                            context,
-                            icon: LucideIcons.tv,
-                            label: 'Cable TV',
-                            color: Colors.orange.shade400,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const CableTvScreen(),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.gift,
+                                label: 'Gift Cards',
+                                color: Colors.pink.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ComingSoonScreen(
+                                      featureName: 'Gift Card Exchange',
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              _buildCircularActionItem(
+                                context,
+                                icon: LucideIcons.graduationCap,
+                                label: 'Education',
+                                color: Colors.indigo.shade400,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ComingSoonScreen(
+                                      featureName: 'Education Pins',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -461,49 +560,36 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWalletCurrencyPill({
+  Widget _buildPopularTransactionPill({
     required String label,
-    required bool isActive,
+    required IconData icon,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isActive ? AppColors.accentLime : Colors.transparent,
-        border: isActive ? null : Border.all(color: Colors.white24),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isActive ? AppColors.primaryForest : Colors.white,
-          fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
-          fontSize: 12,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          border: Border.all(color: Colors.white12),
+          borderRadius: BorderRadius.circular(8),
         ),
-      ),
-    );
-  }
-
-  Widget _buildAddWalletButton() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.white24),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.add, color: Colors.white, size: 14),
-          SizedBox(width: 4),
-          Text(
-            'Add Wallet',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.accentLime, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -517,30 +603,43 @@ class DashboardScreen extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade200, width: 1.5),
+      child: SizedBox(
+        width: 68,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.accentLime,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentLime.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(icon, color: AppColors.primaryForest, size: 20),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark 
-                  ? const Color(0xFFF0F4F2) 
-                  : AppColors.textDark,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFF0F4F2)
+                    : AppColors.textDark,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -594,7 +693,9 @@ class DashboardScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.04)
+            : const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -617,8 +718,8 @@ class DashboardScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: Theme.of(context).brightness == Brightness.dark 
-                        ? const Color(0xFFF0F4F2) 
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFF0F4F2)
                         : AppColors.textDark,
                   ),
                 ),

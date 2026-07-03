@@ -192,6 +192,63 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Logs an Airtime-to-Cash conversion and credits the user's wallet balance
+  Future<void> receiveAirtimeToCash({
+    required double faceValue,
+    required double payoutAmount,
+    required String network,
+    required String senderPhone,
+  }) async {
+    final uid = _userId;
+    final reference = 'ATC-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final title = '$network Airtime to Cash';
+    final subtitle = 'Converted ₦${faceValue.toStringAsFixed(0)} from $senderPhone';
+
+    if (uid != null) {
+      try {
+        // Update profile balance
+        await SupabaseService.client
+            .from('profiles')
+            .update({'wallet_balance': _balance + payoutAmount})
+            .eq('id', uid);
+
+        // Insert transaction record
+        await SupabaseService.client.from('transactions').insert({
+          'profile_id': uid,
+          'title': title,
+          'subtitle': subtitle,
+          'amount': payoutAmount,
+          'category': 'wallet',
+          'status': 'success',
+          'reference': reference,
+          'provider': 'Aimtoget',
+        });
+        
+        await _syncWithSupabase();
+        return;
+      } catch (e) {
+        debugPrint('Supabase Airtime to Cash failed: $e. Falling back to local.');
+      }
+    }
+
+    // Local Fallback
+    _balance += payoutAmount;
+    final tx = TransactionModel(
+      id: _uuid.v4(),
+      title: title,
+      subtitle: subtitle,
+      amount: payoutAmount,
+      date: DateTime.now(),
+      category: TransactionCategory.wallet,
+      status: TransactionStatus.success,
+      reference: reference,
+      provider: 'Aimtoget',
+    );
+    _transactions.insert(0, tx);
+    await _saveLocalState();
+    notifyListeners();
+  }
+
   /// Simulates transferring money to a beneficiary (updates Supabase or local state)
   Future<bool> transferMoney({
     required double amount,
