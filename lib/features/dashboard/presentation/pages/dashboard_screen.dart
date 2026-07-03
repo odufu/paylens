@@ -358,12 +358,19 @@ class DashboardScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 20,
-                            horizontal: 8,
-                          ),
+                          padding: const EdgeInsets.all(16),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              const Text(
+                                'Services',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textGrey,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
@@ -371,7 +378,7 @@ class DashboardScreen extends StatelessWidget {
                                     context,
                                     icon: LucideIcons.smartphone,
                                     label: 'Airtime',
-                                    color: Colors.green.shade400,
+                                    color: const Color(0xFF0F9D58),
                                     onTap: () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) =>
@@ -383,7 +390,7 @@ class DashboardScreen extends StatelessWidget {
                                     context,
                                     icon: LucideIcons.barChart2,
                                     label: 'Data',
-                                    color: Colors.red.shade400,
+                                    color: const Color(0xFF4285F4),
                                     onTap: () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) =>
@@ -395,7 +402,7 @@ class DashboardScreen extends StatelessWidget {
                                     context,
                                     icon: LucideIcons.zap,
                                     label: 'Electricity',
-                                    color: Colors.blue.shade400,
+                                    color: const Color(0xFFF4B400),
                                     onTap: () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => const ElectricityScreen(),
@@ -406,7 +413,7 @@ class DashboardScreen extends StatelessWidget {
                                     context,
                                     icon: LucideIcons.tv,
                                     label: 'Cable TV',
-                                    color: Colors.orange.shade400,
+                                    color: const Color(0xFFDB4437),
                                     onTap: () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => const CableTvScreen(),
@@ -598,37 +605,40 @@ class DashboardScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 68,
+        width: 72,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentLime,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.accentLime.withOpacity(0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                color: Colors.transparent,
+                border: Border.all(
+                  color: color,
+                  width: 1.5,
+                ),
               ),
-              child: Icon(icon, color: AppColors.primaryForest, size: 20),
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
+                ),
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Theme.of(context).brightness == Brightness.dark
                     ? const Color(0xFFF0F4F2)
                     : AppColors.textDark,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 fontSize: 11,
               ),
             ),
