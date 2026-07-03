@@ -8,7 +8,6 @@ import 'package:mspay/features/wallet/presentation/pages/transaction_history_scr
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
 import 'package:mspay/features/profile/presentation/pages/profile_screen.dart';
 import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
-import 'package:mspay/features/utilities/presentation/pages/airtime_to_cash_screen.dart';
 
 class MainNavigationHolder extends StatefulWidget {
   const MainNavigationHolder({super.key});
@@ -27,8 +26,8 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
     super.initState();
     _pages = [
       const DashboardScreen(),
-      const FundWalletScreen(), // Wallet tab displays Monify Virtual Accounts details
-      const AirtimeToCashScreen(), // Center tab displays the app USP
+      const TransferScreen(), // Send/Transfer tab
+      const FundWalletScreen(), // Center tab displays Fund Wallet
       const TransactionHistoryScreen(), // Services/History tab (using History for detail here)
       const ProfileScreen(),            // Profile Screen
     ];
@@ -84,8 +83,8 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, LucideIcons.home, 'Home'),
-                _buildNavItem(1, LucideIcons.wallet, 'Wallet'),
-                _buildCenterSendButton(),
+                _buildNavItem(1, LucideIcons.send, 'Send'),
+                _buildCenterFundButton(),
                 _buildNavItem(3, LucideIcons.history, 'History'),
                 _buildNavItem(4, LucideIcons.user, 'Profile'),
               ],
@@ -124,7 +123,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
     );
   }
 
-  Widget _buildCenterSendButton() {
+  Widget _buildCenterFundButton() {
     return GestureDetector(
       onTap: () => onTabSelected(2),
       child: Transform.translate(
@@ -150,7 +149,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
           ),
           child: const Center(
             child: Icon(
-              LucideIcons.repeat,
+              LucideIcons.wallet,
               color: Color(0xFF022E1F),
               size: 22,
             ),

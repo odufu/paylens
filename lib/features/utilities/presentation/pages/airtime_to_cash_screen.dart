@@ -6,7 +6,6 @@ import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
 import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
-import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 
 class AirtimeToCashScreen extends StatefulWidget {
   const AirtimeToCashScreen({super.key});

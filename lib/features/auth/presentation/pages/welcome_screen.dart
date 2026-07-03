@@ -63,12 +63,9 @@ class WelcomeScreen extends StatelessWidget {
                   // App Branding Logo Placeholder
                   Center(
                     child: AnimatedLogoBorder(
-                      child: CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.transparent,
-                        backgroundImage: const AssetImage(
-                          'assets/images/logo.png',
-                        ),
+                      child: const FintechWalletLensLogo(
+                        size: 80,
+                        isAnimating: true,
                       ),
                     ),
                   ),

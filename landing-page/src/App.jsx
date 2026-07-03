@@ -47,8 +47,32 @@ function App() {
       {/* NAVIGATION HEADER */}
       <header>
         <div className="nav-container">
-          <a href="#" className="nav-logo">
-            PAY LENSES<span className="logo-dot"></span>
+          <a href="#" className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <svg width="32" height="32" viewBox="0 0 100 100" className="wallet-lens-logo">
+              {/* Back Card (slanted) */}
+              <rect x="35" y="10" width="38" height="22" rx="4" fill="#14b8a6" transform="rotate(18, 50, 20)" opacity="0.7" />
+              {/* Front Card (slanted) */}
+              <rect x="25" y="12" width="38" height="22" rx="4" fill="#a3e635" transform="rotate(18, 40, 22)" />
+              {/* Wallet Base */}
+              <rect x="15" y="28" width="70" height="58" rx="10" fill="#022e1f" stroke="#a3e635" strokeWidth="2.2" />
+              {/* Flap */}
+              <rect x="67" y="47" width="18" height="22" rx="3.5" fill="#011c13" />
+              {/* Flap Button */}
+              <circle cx="76" cy="58" r="3" fill="#a3e635" />
+              {/* Lens Spinner */}
+              <g className="lens-spinner">
+                <circle cx="48" cy="58" r="16.5" fill="#0f1a1c" stroke="#ffffff" strokeWidth="1.2" opacity="0.9" />
+                <circle cx="48" cy="58" r="13" fill="none" stroke="#a3e635" strokeWidth="1" />
+                <circle cx="48" cy="58" r="8" fill="#050e0f" />
+                <line x1="48" y1="50" x2="52" y2="55" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+                <line x1="56" y1="58" x2="51" y2="60" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+                <line x1="48" y1="66" x2="44" y2="61" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+                <line x1="40" y1="58" x2="45" y2="56" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+                <circle cx="44" cy="54" r="2.2" fill="#ffffff" opacity="0.75" />
+                <circle cx="52" cy="62" r="1.1" fill="#ffffff" opacity="0.6" />
+              </g>
+            </svg>
+            <span>PAY LENSES</span><span className="logo-dot"></span>
           </a>
           <nav className="nav-links">
             <a href="#features">Features</a>
@@ -422,8 +446,32 @@ function App() {
 
       {/* FOOTER */}
       <footer>
-        <div className="footer-logo">
-          PAY LENSES<span className="logo-dot"></span>
+        <div className="footer-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+          <svg width="32" height="32" viewBox="0 0 100 100" className="wallet-lens-logo">
+            {/* Back Card (slanted) */}
+            <rect x="35" y="10" width="38" height="22" rx="4" fill="#14b8a6" transform="rotate(18, 50, 20)" opacity="0.7" />
+            {/* Front Card (slanted) */}
+            <rect x="25" y="12" width="38" height="22" rx="4" fill="#a3e635" transform="rotate(18, 40, 22)" />
+            {/* Wallet Base */}
+            <rect x="15" y="28" width="70" height="58" rx="10" fill="#022e1f" stroke="#a3e635" strokeWidth="2.2" />
+            {/* Flap */}
+            <rect x="67" y="47" width="18" height="22" rx="3.5" fill="#011c13" />
+            {/* Flap Button */}
+            <circle cx="76" cy="58" r="3" fill="#a3e635" />
+            {/* Lens Spinner */}
+            <g className="lens-spinner">
+              <circle cx="48" cy="58" r="16.5" fill="#0f1a1c" stroke="#ffffff" strokeWidth="1.2" opacity="0.9" />
+              <circle cx="48" cy="58" r="13" fill="none" stroke="#a3e635" strokeWidth="1" />
+              <circle cx="48" cy="58" r="8" fill="#050e0f" />
+              <line x1="48" y1="50" x2="52" y2="55" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+              <line x1="56" y1="58" x2="51" y2="60" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+              <line x1="48" y1="66" x2="44" y2="61" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+              <line x1="40" y1="58" x2="45" y2="56" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
+              <circle cx="44" cy="54" r="2.2" fill="#ffffff" opacity="0.75" />
+              <circle cx="52" cy="62" r="1.1" fill="#ffffff" opacity="0.6" />
+            </g>
+          </svg>
+          <span>PAY LENSES</span><span className="logo-dot"></span>
         </div>
         <div className="footer-links">
           <a href="#features">Features</a>

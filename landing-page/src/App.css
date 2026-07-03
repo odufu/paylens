@@ -182,3 +182,22 @@
     border-right-color: var(--border);
   }
 }
+
+@keyframes spin-lens {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wallet-lens-logo .lens-spinner {
+  animation: spin-lens 10s linear infinite;
+  transform-origin: 48px 58px;
+  transition: animation-duration 0.3s ease;
+}
+
+.wallet-lens-logo:hover .lens-spinner {
+  animation-duration: 2s;
+}
