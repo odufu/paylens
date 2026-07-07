@@ -44,14 +44,20 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
   void initState() {
     super.initState();
     _meterController.addListener(_onMeterChanged);
+    _amountController.addListener(_onAmountChanged);
   }
 
   @override
   void dispose() {
     _meterController.removeListener(_onMeterChanged);
+    _amountController.removeListener(_onAmountChanged);
     _meterController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  void _onAmountChanged() {
+    setState(() {});
   }
 
   void _onMeterChanged() {
@@ -129,7 +135,10 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     }
 
     final double amount = double.parse(_amountController.text.trim());
-    if (amount > walletProvider.balance) {
+    final fee = walletProvider.electricityFee;
+    final totalDebit = amount + fee;
+
+    if (totalDebit > walletProvider.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Insufficient wallet balance.')),
       );
@@ -151,11 +160,18 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     if (mounted) {
       if (purchaseResult.success) {
         final bool success = await walletProvider.payBill(
-          amount: amount,
+          amount: totalDebit,
           serviceName: 'Electricity Bill ($_selectedDisco)',
-          billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
+          billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee)',
           category: TransactionCategory.bills,
         );
+
+        if (success) {
+          final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+          if (earnedPoints > 0) {
+            await walletProvider.addLoyaltyPoints(earnedPoints);
+          }
+        }
 
         if (mounted) {
           BrandedLoadingOverlay.hide(context);
@@ -168,7 +184,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               context,
               serviceTitle: 'Electricity Bill ($_selectedDisco)',
               recipient: '$_verifiedCustomerName (${_meterController.text})',
-              amount: amount,
+              amount: totalDebit,
               transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
               token: purchaseResult.token,
               providerName: 'VTPass',
@@ -179,7 +195,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
         final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
         
         final ticketId = await walletProvider.logFailedTransaction(
-          amount: amount,
+          amount: totalDebit,
           serviceName: 'Electricity Bill ($_selectedDisco)',
           billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
           category: TransactionCategory.bills,
@@ -405,7 +421,77 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // Price Breakdown Card
+              if (_isVerified && _amountController.text.trim().isNotEmpty) ...[
+                Builder(
+                  builder: (context) {
+                    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+                    if (amount > 0) {
+                      final fee = walletProvider.electricityFee;
+                      final total = amount + fee;
+                      final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.02)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.04)
+                                : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Vending Amount', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+                                Text(CurrencyFormatter.format(amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Convenience Fee', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+                                Text(CurrencyFormatter.format(fee), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest)),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Total Debit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text(CurrencyFormatter.format(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryForest)),
+                              ],
+                            ),
+                            if (earnedPoints > 0) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Rewards Earned', style: TextStyle(color: AppColors.successGreen, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text('+$earnedPoints LensPoints', style: const TextStyle(color: AppColors.successGreen, fontWeight: FontWeight.bold, fontSize: 12)),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+
+              const SizedBox(height: 16),
 
               // Pay Bill Button
               SizedBox(

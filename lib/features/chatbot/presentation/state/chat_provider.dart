@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/features/chatbot/data/models/chat_message_model.dart';
+import 'package:mspay/features/chatbot/domain/repositories/chat_repository.dart';
 
 class ChatProvider extends ChangeNotifier {
+  final ChatRepository _chatRepository;
   final _uuid = const Uuid();
   final List<ChatMessageModel> _messages = [];
   bool _isTyping = false;
@@ -12,7 +14,7 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessageModel> get messages => _messages;
   bool get isTyping => _isTyping;
 
-  ChatProvider() {
+  ChatProvider(this._chatRepository) {
     _sendWelcomeMessage();
     // Reset conversation when user changes
     SupabaseService.client.auth.onAuthStateChange.listen((data) {
@@ -40,7 +42,7 @@ class ChatProvider extends ChangeNotifier {
         quickReplies: [
           'Verify Transaction Status',
           'Report Technical Issue',
-          'Monify Info',
+          'Paystack Info',
           'VTPass Utilities Info',
           'Talk to an Agent'
         ],
@@ -64,14 +66,49 @@ class ChatProvider extends ChangeNotifier {
     _isTyping = true;
     notifyListeners();
     
-    await Future.delayed(const Duration(milliseconds: 1000));
-    _isTyping = false;
-    
-    await _processResponse(text);
+    // We introduce a minimum delay of 600ms for natural conversational pacing
+    final startTime = DateTime.now();
+
+    try {
+      // Pass history excluding the newly added user message
+      final history = _messages.sublist(0, _messages.length - 1);
+      final reply = await _chatRepository.getReply(text, history);
+
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 600) {
+        await Future.delayed(Duration(milliseconds: 600 - elapsed));
+      }
+
+      _isTyping = false;
+      _messages.add(
+        ChatMessageModel(
+          id: _uuid.v4(),
+          text: reply,
+          isUser: false,
+          timestamp: DateTime.now(),
+          quickReplies: [
+            'Verify Transaction Status',
+            'Report Technical Issue',
+            'Paystack Info',
+            'Talk to an Agent',
+            'Back to Main Menu'
+          ],
+        ),
+      );
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Gemini Chatbot failed: $e. Falling back to rule-based responses.');
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 600) {
+        await Future.delayed(Duration(milliseconds: 600 - elapsed));
+      }
+      _isTyping = false;
+      await _processFallbackResponse(text);
+    }
   }
 
   /// Handles bot decision tree based on message and logs to Supabase
-  Future<void> _processResponse(String userText) async {
+  Future<void> _processFallbackResponse(String userText) async {
     String replyText = '';
     List<String>? replies;
     final userName = _getUserName();
@@ -79,8 +116,8 @@ class ChatProvider extends ChangeNotifier {
 
     if (query.contains('verify transaction') || query.contains('status')) {
       replyText = 'Which service provider was the transaction made through? Or choose from your options below:';
-      replies = ['Monify Transfer', 'VTPass Utilities', 'Back to Main Menu'];
-    } else if (query == 'monify transfer' || query == 'vtpass utilities') {
+      replies = ['Paystack Transfer', 'VTPass Utilities', 'Back to Main Menu'];
+    } else if (query == 'paystack transfer' || query == 'vtpass utilities') {
       replyText = 'Understood. Please provide the 10-digit reference ID or describe the transaction (e.g. DSTV, Funding). You can also report it directly via the "Report Technical Issue" menu.';
       replies = ['Report Technical Issue', 'Back to Main Menu'];
     } else if (query.contains('technical issue') || query.contains('report')) {
@@ -98,16 +135,16 @@ class ChatProvider extends ChangeNotifier {
       replies = ['Back to Main Menu'];
     } else if (query.contains('funding') || query.contains('report wallet funding')) {
       final ticketId = _generateTicketId();
-      await _logTicketToSupabase(ticketId, 'Wallet Funding', 'Customer reported issues with Monify Wallet Funding');
-      replyText = 'Thank you $userName. A ticket has been created for the engineering team regarding your Wallet Funding transaction.\n\n**Ticket ID**: $ticketId\n**Provider**: Monify\n**Status**: Escalated to Engineering\n\nWe will review the bank settlement records and notify you.';
+      await _logTicketToSupabase(ticketId, 'Wallet Funding', 'Customer reported issues with Paystack Wallet Funding');
+      replyText = 'Thank you $userName. A ticket has been created for the engineering team regarding your Wallet Funding transaction.\n\n**Ticket ID**: $ticketId\n**Provider**: Paystack\n**Status**: Escalated to Engineering\n\nWe will review the bank settlement records and notify you.';
       replies = ['Back to Main Menu'];
     } else if (query.contains('mtn') || query.contains('report mtn airtime')) {
       final ticketId = _generateTicketId();
       await _logTicketToSupabase(ticketId, 'MTN Airtime', 'Customer reported issues with MTN Airtime top-up');
       replyText = 'Thank you $userName. A ticket has been created for the engineering team regarding your MTN Airtime transaction.\n\n**Ticket ID**: $ticketId\n**Provider**: VTPass\n**Status**: Escalated to Engineering\n\nWe will check the network delivery logs and update you.';
       replies = ['Back to Main Menu'];
-    } else if (query.contains('monify info')) {
-      replyText = 'Monify is our primary wallet provider. It generates dedicated virtual bank accounts for each user (e.g., Wema Bank account numbers) which settle deposits instantly to your Pay Lenses wallet.';
+    } else if (query.contains('paystack info')) {
+      replyText = 'Paystack is our primary wallet provider. It generates dedicated virtual bank accounts for each user (e.g. Wema or Titan Trust Bank account numbers) which settle deposits instantly to your Pay Lenses wallet.';
       replies = ['Check Wallet Balance', 'Back to Main Menu'];
     } else if (query.contains('vtpass utilities info')) {
       replyText = 'VTPass is our billing partner. We route payments for airtime top-ups, internet data subscription, electricity bills, and Cable TV packages (DSTV, GOtv, StarTimes) securely via their API.';
@@ -120,7 +157,7 @@ class ChatProvider extends ChangeNotifier {
       replies = [
         'Verify Transaction Status',
         'Report Technical Issue',
-        'Monify Info',
+        'Paystack Info',
         'VTPass Utilities Info',
         'Talk to an Agent'
       ];

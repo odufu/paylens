@@ -13,10 +13,14 @@ import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart
 class AirtimeDataScreen extends StatefulWidget {
   final bool isData;
   final String? initialProvider;
+  final String? initialCategory;
+  final String? initialPackageId;
   const AirtimeDataScreen({
     super.key,
     required this.isData,
     this.initialProvider,
+    this.initialCategory,
+    this.initialPackageId,
   });
 
   @override
@@ -314,8 +318,19 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     if (widget.initialProvider != null) {
       _selectedProvider = widget.initialProvider!;
     }
+    if (widget.initialCategory != null) {
+      _selectedCategory = widget.initialCategory!;
+    }
     if (_isDataTab) {
-      _selectedDataPackage = _getFilteredPackages().first;
+      final packages = _getFilteredPackages();
+      if (widget.initialPackageId != null) {
+        _selectedDataPackage = packages.firstWhere(
+          (p) => p['id'] == widget.initialPackageId,
+          orElse: () => packages.first,
+        );
+      } else {
+        _selectedDataPackage = packages.first;
+      }
     }
     _phoneController.addListener(_onPhoneChanged);
     _loadRecentNumbers();

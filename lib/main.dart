@@ -9,6 +9,7 @@ import 'package:mspay/features/chatbot/presentation/state/chat_provider.dart';
 import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/auth/presentation/pages/welcome_screen.dart';
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
+import 'package:mspay/features/notifications/presentation/state/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +24,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => sl<AuthProvider>()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => sl<ChatProvider>()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: const PayLensesApp(),
     ),

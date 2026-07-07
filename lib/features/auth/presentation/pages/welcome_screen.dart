@@ -5,6 +5,7 @@ import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_in_screen.dart';
 import 'package:mspay/features/auth/presentation/pages/sign_up_screen.dart';
+import 'package:mspay/core/utils/security_utils.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -12,6 +13,48 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+
+    // Run cyber security integrity audit
+    final isSecured = SecurityUtils.verifyDeviceIntegrity();
+
+    if (!isSecured) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0C1013),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.security,
+                  color: Colors.redAccent,
+                  size: 80,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Security Violation',
+                  style: textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Pay Lenses cannot run on compromised, rooted, or jailbroken devices to protect your wallet and financial assets.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Stack(
@@ -86,7 +129,7 @@ class WelcomeScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Center(
                     child: Text(
-                      'Experience premium mobile wealth management and automated utilities. Settle bills instantly via Monify and VTPass.',
+                      'Experience premium mobile wealth management and automated utilities. Settle bills instantly via Paystack and VTPass.',
                       textAlign: TextAlign.center,
                       style: textTheme.bodyMedium?.copyWith(
                         color: AppColors.textLightGrey.withOpacity(0.8),

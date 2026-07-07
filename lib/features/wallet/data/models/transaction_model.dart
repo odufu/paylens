@@ -19,7 +19,7 @@ class TransactionModel {
   final TransactionCategory category;
   final TransactionStatus status;
   final String reference;
-  final String provider; // "Monify" or "VTPass"
+  final String provider; // "Paystack" or "VTPass"
 
   TransactionModel({
     required this.id,

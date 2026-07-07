@@ -10,21 +10,6 @@ class ApiConstants {
         '448651380105-eue7obbkg7c6u4lepfus61g3c4r6fc6n.apps.googleusercontent.com',
   );
 
-  // VTPass API Configuration
-  static const String vtPassBaseUrl = 'https://sandbox.vtpass.com/api';
-
-  static const String vtPassApiKey = String.fromEnvironment(
-    'VTPASS_API_KEY',
-    defaultValue: 'f139c21a3e380197b17b94b5689237fa',
-  );
-
-  static const String vtPassPublicKey = String.fromEnvironment(
-    'VTPASS_PUBLIC_KEY',
-    defaultValue: 'PK_86252e404a864e30397b8ab851a1df183d47bfcda85',
-  );
-
-  static const String vtPassSecretKey = String.fromEnvironment(
-    'VTPASS_SECRET_KEY',
-    defaultValue: 'SK_77943cd8270f2881a7010cc33f4aa53d6395baac9de',
-  );
+  static const String paystackPublicKey =
+      'pk_test_0ac140673685b32b2e9613b548991cd9563e917a';
 }

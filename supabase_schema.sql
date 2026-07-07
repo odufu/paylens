@@ -9,10 +9,31 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     full_name TEXT NOT NULL,
     email TEXT NOT NULL,
     avatar_url TEXT,
-    wallet_balance NUMERIC(15, 2) DEFAULT 209891.21 NOT NULL,
-    wema_account_number TEXT DEFAULT '3091827364' NOT NULL,
+    wallet_balance NUMERIC(15, 2) DEFAULT 0.00 NOT NULL,
+    paystack_account_number TEXT DEFAULT 'Verify BVN to activate' NOT NULL,
+    paystack_bank_name TEXT DEFAULT 'Not Activated' NOT NULL,
+    paystack_customer_code TEXT DEFAULT 'UNVERIFIED' NOT NULL,
+    loyalty_points INTEGER DEFAULT 0 NOT NULL,
+    kyc_verified BOOLEAN DEFAULT false NOT NULL,
+    bvn_verified_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 1.5. Create Platform Fees Configuration Table
+CREATE TABLE IF NOT EXISTS public.fees_config (
+    id TEXT PRIMARY KEY DEFAULT 'main',
+    electricity_fee NUMERIC(15, 2) DEFAULT 150.00 NOT NULL,
+    cable_fee NUMERIC(15, 2) DEFAULT 150.00 NOT NULL,
+    transfer_fee NUMERIC(15, 2) DEFAULT 25.00 NOT NULL,
+    referral_bonus NUMERIC(15, 2) DEFAULT 100.00 NOT NULL,
+    points_rate NUMERIC(15, 4) DEFAULT 0.0100 NOT NULL
+);
+
+-- Seed default fees configuration
+INSERT INTO public.fees_config (id, electricity_fee, cable_fee, transfer_fee, referral_bonus, points_rate)
+VALUES ('main', 150.00, 150.00, 25.00, 100.00, 0.0100)
+ON CONFLICT (id) DO NOTHING;
+
 
 -- 2. Create Transactions Table
 CREATE TABLE IF NOT EXISTS public.transactions (
@@ -116,13 +137,17 @@ CREATE POLICY "Users can create support tickets"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, full_name, email, wallet_balance, wema_account_number)
+    INSERT INTO public.profiles (id, full_name, email, wallet_balance, paystack_account_number, paystack_bank_name, paystack_customer_code, loyalty_points, kyc_verified)
     VALUES (
         new.id,
         COALESCE(new.raw_user_meta_data->>'full_name', 'Darlington Nnamdi'),
         new.email,
-        209891.21,
-        '3091827364'
+        0.00,
+        'Verify BVN to activate',
+        'Not Activated',
+        'UNVERIFIED',
+        0,
+        false
     );
     RETURN NEW;
 END;
@@ -133,3 +158,23 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 8. Create Notifications Table
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('transactions', 'alerts', 'promos')),
+    is_read BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Enable RLS on notifications table
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own notifications" ON public.notifications
+    FOR SELECT USING (auth.uid() = profile_id);
+
+CREATE POLICY "Users can update their own notifications" ON public.notifications
+    FOR UPDATE USING (auth.uid() = profile_id);

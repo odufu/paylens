@@ -26,7 +26,7 @@ class InAppDocumentationScreen extends StatelessWidget {
             labelColor: AppColors.accentLime,
             unselectedLabelColor: Colors.white70,
             tabs: [
-              Tab(text: 'Monnify'),
+              Tab(text: 'Paystack'),
               Tab(text: 'VTPass'),
               Tab(text: 'Aimtoget'),
               Tab(text: 'Security Rules'),
@@ -35,7 +35,7 @@ class InAppDocumentationScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildMonnifyTab(context, textTheme, isDark),
+            _buildPaystackTab(context, textTheme, isDark),
             _buildVtPassTab(context, textTheme, isDark),
             _buildAimtogetTab(context, textTheme, isDark),
             _buildSecurityTab(context, textTheme, isDark),
@@ -221,32 +221,32 @@ class InAppDocumentationScreen extends StatelessWidget {
     );
   }
 
-  // --- TAB 1: MONNIFY ---
-  Widget _buildMonnifyTab(BuildContext context, TextTheme textTheme, bool isDark) {
+  // --- TAB 1: PAYSTACK ---
+  Widget _buildPaystackTab(BuildContext context, TextTheme textTheme, bool isDark) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _buildDocCard(
           context: context,
-          title: 'Monnify Wallet Services',
+          title: 'Paystack Wallet Services',
           subtitle: 'Handles instant virtual bank accounts & payment processing',
           icon: LucideIcons.creditCard,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'We use Monnify primarily to automatically generate unique Wema/Sterling bank accounts for users. When bank transfers are made to these accounts, Monnify triggers webhook notifications to credit the user wallets instantly.',
+                'We use Paystack primarily to automatically generate unique dedicated bank accounts for users. When bank transfers are made to these accounts, Paystack triggers webhook notifications to credit the user wallets instantly.',
                 style: TextStyle(fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 16),
-              const Text('1. API ENDPOINT (CREATE VIRTUAL ACCOUNT)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const Text('1. API ENDPOINT (CREATE DEDICATED ACCOUNT)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
-              _buildCodeBlock('POST /api/v2/bank-transfer/reserved-accounts', context),
+              _buildCodeBlock('POST /dedicated_account', context),
               const SizedBox(height: 16),
               const Text('REQUIRED API HEADERS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               _buildCodeBlock(
-                'Authorization: Bearer <Access_Token>\nContent-Type: application/json',
+                'Authorization: Bearer <Paystack_Secret_Key>\nContent-Type: application/json',
                 context,
               ),
             ],
@@ -255,23 +255,22 @@ class InAppDocumentationScreen extends StatelessWidget {
         _buildDocCard(
           context: context,
           title: 'Parameters Stated',
-          subtitle: 'Required parameters to query Monnify reserved accounts API',
+          subtitle: 'Required parameters to query Paystack dedicated accounts API',
           icon: LucideIcons.settings,
           child: Column(
             children: [
-              _buildParameterRow('accountReference', 'String', 'REQUIRED', 'Unique string identifier generated deterministically per profile.', context),
-              _buildParameterRow('accountName', 'String', 'REQUIRED', 'FullName of the customer registering for the account.', context),
-              _buildParameterRow('customerEmail', 'String', 'REQUIRED', 'Email address associated with the user account.', context),
-              _buildParameterRow('customerName', 'String', 'REQUIRED', 'Formatted name representing customer profile.', context),
-              _buildParameterRow('contractCode', 'String', 'REQUIRED', 'Monnify merchant account contract ID.', context),
-              _buildParameterRow('getAllAvailableBanks', 'Boolean', 'OPTIONAL', 'Defaults to true to generate virtual accounts across multiple provider banks.', context),
+              _buildParameterRow('customer', 'String', 'REQUIRED', 'Customer ID or email representing the user.', context),
+              _buildParameterRow('preferred_bank', 'String', 'OPTIONAL', 'Preferred partner bank code (e.g. wema-bank).', context),
+              _buildParameterRow('first_name', 'String', 'REQUIRED', 'First name of the customer profile.', context),
+              _buildParameterRow('last_name', 'String', 'REQUIRED', 'Last name of the customer profile.', context),
+              _buildParameterRow('phone', 'String', 'REQUIRED', 'Contact number associated with user profile.', context),
             ],
           ),
         ),
         _buildDocCard(
           context: context,
           title: 'Security & Handling',
-          subtitle: 'Best practices for securing Monnify keys',
+          subtitle: 'Best practices for securing Paystack keys',
           icon: LucideIcons.shieldCheck,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,9 +284,9 @@ class InAppDocumentationScreen extends StatelessWidget {
               const Text('WEBHOOK SIGNATURE VERIFICATION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               const Text(
-                'When Monnify settles a wallet funding transaction, they call your backend listener. You MUST verify the header signature using HMAC-SHA512 to avoid simulated credit attacks:\n\n'
-                'CalculatedHash = HMAC_SHA512(monnifySecretKey, requestBodyJson)\n\n'
-                'Only proceed with crediting user balance if CalculatedHash matches the incoming request header "monnify-signature".',
+                'When Paystack settles a wallet funding transaction, they call your backend listener. You MUST verify the header signature using HMAC-SHA512 to avoid simulated credit attacks:\n\n'
+                'CalculatedHash = HMAC_SHA512(paystackSecretKey, requestBodyJson)\n\n'
+                'Only proceed with crediting user balance if CalculatedHash matches the incoming request header "x-paystack-signature".',
                 style: TextStyle(fontSize: 12, height: 1.5),
               ),
             ],
@@ -458,7 +457,7 @@ class InAppDocumentationScreen extends StatelessWidget {
               _buildSecurityRuleItem(
                 number: '1',
                 title: 'Never Hardcode Keys in Codebase',
-                desc: 'All sensitive data (VTPass ApiKey, Monnify Secret, Aimtoget tokens, database passwords) must be stored in secure environment variables (.env files) on your cloud backend (e.g. Supabase Secrets management or AWS Parameter Store).',
+                desc: 'All sensitive data (VTPass ApiKey, Paystack Secret, Aimtoget tokens, database passwords) must be stored in secure environment variables (.env files) on your cloud backend (e.g. Supabase Secrets management or AWS Parameter Store).',
                 context: context,
               ),
               _buildSecurityRuleItem(

@@ -35,6 +35,7 @@ class AuthProvider extends ChangeNotifier {
   String get userEmail => _currentUser?.email ?? 'darlington@lushfintech.com';
   String get userId => _currentUser?.id ?? '';
   String? get avatarUrl => _userProfile?.avatarUrl;
+  bool get isAdmin => userEmail.toLowerCase().contains('admin') || userEmail.toLowerCase().endsWith('@paylenses.com');
 
   AuthProvider({
     required this.signInUseCase,

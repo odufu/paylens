@@ -5,25 +5,42 @@ import 'package:uuid/uuid.dart';
 import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/wallet/data/models/beneficiary_model.dart';
-import 'package:mspay/features/wallet/data/datasources/monify_service.dart';
+import 'package:mspay/features/wallet/data/datasources/paystack_service.dart';
 
 class WalletProvider extends ChangeNotifier {
   final _uuid = const Uuid();
   
-  double _balance = 209891.21;
+  double _balance = 0.00;
   bool _isBalanceVisible = true;
-  String _wemaAccountNumber = '3091827364'; // Custom virtual account powered by Monify
-  String _sterlingAccountNumber = '7291827364'; // Sterling Bank fallback account
+  String _paystackAccountNumber = 'Verify BVN to activate'; // Paystack dedicated account number
+  String _paystackBankName = 'Not Activated'; // Paystack partner bank name
+  String _paystackCustomerCode = 'UNVERIFIED'; // Paystack customer reference code
+  int _loyaltyPoints = 0; // Customer loyalty/reward points
+  bool _kycVerified = false; // Is BVN verification completed?
   
   List<TransactionModel> _transactions = [];
   List<BeneficiaryModel> _beneficiaries = [];
   bool _isSyncing = false;
 
+  double _electricityFee = 150.00;
+  double _cableFee = 150.00;
+  double _transferFee = 25.00;
+  double _pointsRate = 0.01;
+
   // Getters
   double get balance => _balance;
   bool get isBalanceVisible => _isBalanceVisible;
-  String get wemaAccountNumber => _wemaAccountNumber;
-  String get sterlingAccountNumber => _sterlingAccountNumber;
+  String get wemaAccountNumber => _paystackAccountNumber; // Backward compatibility alias
+  String get sterlingAccountNumber => _kycVerified ? '8891827364' : 'Verify BVN to activate'; // Fallback Titan Trust account
+  String get paystackAccountNumber => _paystackAccountNumber;
+  String get paystackBankName => _paystackBankName;
+  String get paystackCustomerCode => _paystackCustomerCode;
+  int get loyaltyPoints => _loyaltyPoints;
+  bool get kycVerified => _kycVerified;
+  double get electricityFee => _electricityFee;
+  double get cableFee => _cableFee;
+  double get transferFee => _transferFee;
+  double get pointsRate => _pointsRate;
   List<TransactionModel> get transactions => _transactions;
   List<BeneficiaryModel> get beneficiaries => _beneficiaries;
   bool get isSyncing => _isSyncing;
@@ -50,6 +67,8 @@ class WalletProvider extends ChangeNotifier {
     _isSyncing = true;
     notifyListeners();
 
+    await fetchFeesConfig();
+
     if (_userId != null) {
       await _syncWithSupabase();
     } else {
@@ -60,13 +79,33 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fetches platform-wide fees configuration from Supabase table
+  Future<void> fetchFeesConfig() async {
+    try {
+      final config = await SupabaseService.client
+          .from('fees_config')
+          .select()
+          .eq('id', 'main')
+          .maybeSingle();
+
+      if (config != null) {
+        _electricityFee = (config['electricity_fee'] as num).toDouble();
+        _cableFee = (config['cable_fee'] as num).toDouble();
+        _transferFee = (config['transfer_fee'] as num).toDouble();
+        _pointsRate = (config['points_rate'] as num).toDouble();
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch fees config: $e. Using default local values.');
+    }
+  }
+
   /// Synchronizes state with Supabase tables
   Future<void> _syncWithSupabase() async {
     final uid = _userId;
     if (uid == null) return;
 
+    // 1. Fetch Profile (Balance & Virtual Account)
     try {
-      // 1. Fetch Profile (Balance & Virtual Account)
       final profile = await SupabaseService.client
           .from('profiles')
           .select()
@@ -75,29 +114,52 @@ class WalletProvider extends ChangeNotifier {
 
       if (profile != null) {
         _balance = (profile['wallet_balance'] as num).toDouble();
+        _loyaltyPoints = (profile['loyalty_points'] ?? 0) as int;
+        _kycVerified = (profile['kyc_verified'] ?? false) as bool;
         
-        final dbWema = profile['wema_account_number'];
-        if (dbWema == null || dbWema == '3091827364') {
-          final uniqueWema = MonifyService.generateVirtualAccount(uid, 'WEMA');
-          try {
-            await SupabaseService.client
-                .from('profiles')
-                .update({'wema_account_number': uniqueWema})
-                .eq('id', uid);
-            _wemaAccountNumber = uniqueWema;
-          } catch (e) {
-            debugPrint('Failed to persist generated Wema account number: $e');
-            _wemaAccountNumber = uniqueWema;
+        if (_kycVerified) {
+          final dbAcc = profile['paystack_account_number'];
+          if (dbAcc == null || dbAcc == '3091827364' || dbAcc == 'Verify BVN to activate') {
+            final uniqueAcc = PaystackService.generateVirtualAccount(uid, 'WEMA');
+            final customerCode = PaystackService.generateCustomerCode(uid);
+            final bankName = PaystackService.getBankName('WEMA');
+            try {
+              await SupabaseService.client
+                  .from('profiles')
+                  .update({
+                    'paystack_account_number': uniqueAcc,
+                    'paystack_bank_name': bankName,
+                    'paystack_customer_code': customerCode,
+                  })
+                  .eq('id', uid);
+              _paystackAccountNumber = uniqueAcc;
+              _paystackBankName = bankName;
+              _paystackCustomerCode = customerCode;
+            } catch (e) {
+              debugPrint('Failed to persist generated Paystack account number: $e');
+              _paystackAccountNumber = uniqueAcc;
+              _paystackBankName = bankName;
+              _paystackCustomerCode = customerCode;
+            }
+          } else {
+            _paystackAccountNumber = dbAcc;
+            _paystackBankName = profile['paystack_bank_name'] ?? 'Wema Bank';
+            _paystackCustomerCode = profile['paystack_customer_code'] ?? 'CUST_3091827364';
           }
         } else {
-          _wemaAccountNumber = dbWema;
+          _paystackAccountNumber = 'Verify BVN to activate';
+          _paystackBankName = 'Not Activated';
+          _paystackCustomerCode = 'UNVERIFIED';
         }
-        
-        // Generate Sterling account deterministically on the fly
-        _sterlingAccountNumber = MonifyService.generateVirtualAccount(uid, 'STERLING');
       }
+    } catch (e) {
+      debugPrint('Error syncing profile from Supabase: $e');
+      // If profile fails, fallback to local state to prevent app crash
+      await _loadLocalState();
+    }
 
-      // 2. Fetch Transactions
+    // 2. Fetch Transactions
+    try {
       final txData = await SupabaseService.client
           .from('transactions')
           .select()
@@ -111,14 +173,24 @@ class WalletProvider extends ChangeNotifier {
           subtitle: row['subtitle'],
           amount: (row['amount'] as num).toDouble(),
           date: DateTime.parse(row['created_at']),
-          category: TransactionCategory.values.firstWhere((e) => e.name == row['category']),
-          status: TransactionStatus.values.firstWhere((e) => e.name == row['status']),
-          reference: row['reference'],
-          provider: row['provider'],
+          category: TransactionCategory.values.firstWhere(
+            (e) => e.name == row['category'],
+            orElse: () => TransactionCategory.wallet,
+          ),
+          status: TransactionStatus.values.firstWhere(
+            (e) => e.name == row['status'],
+            orElse: () => TransactionStatus.failed,
+          ),
+          reference: row['reference'] ?? 'REF-${row['id']}',
+          provider: row['provider'] ?? 'Unknown',
         );
       }).toList();
+    } catch (e) {
+      debugPrint('Error syncing transactions from Supabase: $e');
+    }
 
-      // 3. Fetch Beneficiaries
+    // 3. Fetch Beneficiaries
+    try {
       final benData = await SupabaseService.client
           .from('beneficiaries')
           .select()
@@ -134,11 +206,8 @@ class WalletProvider extends ChangeNotifier {
           initials: row['initials'],
         );
       }).toList();
-
     } catch (e) {
-      debugPrint('Error syncing wallet with Supabase: $e');
-      // If error occurs, fall back to locally loaded records
-      await _loadLocalState();
+      debugPrint('Error syncing beneficiaries from Supabase: $e');
     }
   }
 
@@ -164,7 +233,7 @@ class WalletProvider extends ChangeNotifier {
           'category': 'wallet',
           'status': 'success',
           'reference': reference,
-          'provider': 'Monify',
+          'provider': 'Paystack',
         });
         
         await _syncWithSupabase();
@@ -185,11 +254,105 @@ class WalletProvider extends ChangeNotifier {
       category: TransactionCategory.wallet,
       status: TransactionStatus.success,
       reference: reference,
-      provider: 'Monify',
+      provider: 'Paystack',
     );
     _transactions.insert(0, tx);
     await _saveLocalState();
     notifyListeners();
+  }
+
+  /// Adds loyalty points to the user's account and updates Supabase or local state
+  Future<void> addLoyaltyPoints(int points) async {
+    final uid = _userId;
+    _loyaltyPoints += points;
+    
+    if (uid != null) {
+      try {
+        await SupabaseService.client
+            .from('profiles')
+            .update({'loyalty_points': _loyaltyPoints})
+            .eq('id', uid);
+      } catch (e) {
+        debugPrint('Failed to sync loyalty points to Supabase: $e');
+      }
+    }
+    
+    await _saveLocalState();
+    notifyListeners();
+  }
+
+  /// Securely verifies user's BVN and date of birth, then provisions virtual accounts
+  Future<bool> verifyBvnAndProvisionWallet({
+    required String bvn,
+    required String dob,
+  }) async {
+    if (bvn.length != 11 || int.tryParse(bvn) == null) {
+      throw Exception('Invalid BVN length. Must be exactly 11 digits.');
+    }
+
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      // Call the Supabase Edge Function to verify and create the dedicated account
+      final response = await SupabaseService.client.functions.invoke(
+        'paystack-dedicated-account',
+        body: {
+          'bvn': bvn,
+          'dob': dob,
+        },
+      );
+
+      if (response.status != 200) {
+        final errorMsg = response.data?['error'] ?? 'Provisioning virtual accounts failed.';
+        throw Exception(errorMsg);
+      }
+
+      await _syncWithSupabase();
+      _isSyncing = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('BVN Verification failed: $e');
+      _isSyncing = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Initializes a secure payment gateway session via Paystack.
+  /// Returns the authorization URL to load in the browser.
+  Future<String?> initializePayment(double amount) async {
+    if (amount <= 0) {
+      throw Exception('Please enter a valid amount greater than 0.');
+    }
+
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      final response = await SupabaseService.client.functions.invoke(
+        'paystack-initialize-transaction',
+        body: {
+          'amount': amount,
+        },
+      );
+
+      _isSyncing = false;
+      notifyListeners();
+
+      if (response.status != 200) {
+        final errorMsg = response.data?['error'] ?? 'Failed to initialize payment.';
+        throw Exception(errorMsg);
+      }
+
+      return response.data?['authorization_url'] as String?;
+    } catch (e) {
+      debugPrint('Payment initialization failed: $e');
+      _isSyncing = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Logs an Airtime-to-Cash conversion and credits the user's wallet balance
@@ -279,7 +442,7 @@ class WalletProvider extends ChangeNotifier {
           'category': 'transfers',
           'status': 'success',
           'reference': reference,
-          'provider': 'Monify',
+          'provider': 'Paystack',
         });
 
         // Insert beneficiary if not exists
@@ -320,7 +483,7 @@ class WalletProvider extends ChangeNotifier {
       category: TransactionCategory.transfers,
       status: TransactionStatus.success,
       reference: reference,
-      provider: 'Monify',
+      provider: 'Paystack',
     );
     _transactions.insert(0, tx);
 
@@ -468,9 +631,12 @@ class WalletProvider extends ChangeNotifier {
 
   Future<void> _loadLocalState() async {
     final prefs = await SharedPreferences.getInstance();
-    _balance = prefs.getDouble('wallet_balance') ?? 209891.21;
-    _wemaAccountNumber = prefs.getString('wema_account_num') ?? '3091827364';
-    _sterlingAccountNumber = prefs.getString('sterling_account_num') ?? '7291827364';
+    _balance = prefs.getDouble('wallet_balance') ?? 0.00;
+    _paystackAccountNumber = prefs.getString('paystack_account_num') ?? 'Verify BVN to activate';
+    _paystackBankName = prefs.getString('paystack_bank_name') ?? 'Not Activated';
+    _paystackCustomerCode = prefs.getString('paystack_customer_code') ?? 'UNVERIFIED';
+    _loyaltyPoints = prefs.getInt('loyalty_points') ?? 0;
+    _kycVerified = prefs.getBool('kyc_verified') ?? false;
     
     final txString = prefs.getString('transactions_list');
     if (txString != null) {
@@ -494,6 +660,8 @@ class WalletProvider extends ChangeNotifier {
   Future<void> _saveLocalState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('wallet_balance', _balance);
+    await prefs.setInt('loyalty_points', _loyaltyPoints);
+    await prefs.setBool('kyc_verified', _kycVerified);
     
     final txs = _transactions.map((e) => e.toJson()).toList();
     await prefs.setString('transactions_list', jsonEncode(txs));
@@ -505,8 +673,9 @@ class WalletProvider extends ChangeNotifier {
   Future<void> _saveLocalPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('balance_visible', _isBalanceVisible);
-    await prefs.setString('wema_account_num', _wemaAccountNumber);
-    await prefs.setString('sterling_account_num', _sterlingAccountNumber);
+    await prefs.setString('paystack_account_num', _paystackAccountNumber);
+    await prefs.setString('paystack_bank_name', _paystackBankName);
+    await prefs.setString('paystack_customer_code', _paystackCustomerCode);
   }
 
   List<TransactionModel> _getDefaultTransactions() {
@@ -530,8 +699,8 @@ class WalletProvider extends ChangeNotifier {
         date: DateTime(2025, 4, 9, 10, 15),
         category: TransactionCategory.wallet,
         status: TransactionStatus.success,
-        reference: 'MNFY-582910482',
-        provider: 'Monify',
+        reference: 'PSTK-582910482',
+        provider: 'Paystack',
       ),
       TransactionModel(
         id: '3',

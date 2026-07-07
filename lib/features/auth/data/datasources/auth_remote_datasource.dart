@@ -103,20 +103,28 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           redirectTo: kIsWeb ? null : 'io.supabase.mspay://login-callback',
         );
         final rawUrl = res.url;
-        final chromeUri = Uri.parse('googlechrome://navigate?url=${Uri.encodeComponent(rawUrl)}');
+        final httpsUri = Uri.parse(rawUrl);
         
-        if (await canLaunchUrl(chromeUri)) {
-          await launchUrl(chromeUri, mode: LaunchMode.externalApplication);
-        } else {
-          // Fallback to standard external application launch if googlechrome scheme isn't registered
-          final httpsUri = Uri.parse(rawUrl);
-          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+        try {
+          // 1. Try launching inside the app custom tab
+          await launchUrl(httpsUri, mode: LaunchMode.inAppBrowserView);
+        } catch (launchError) {
+          debugPrint('In-app browser view launch failed: $launchError. Trying Chrome intent redirect...');
+          try {
+            // 2. If it fails (due to OPay security exceptions or similar intent conflicts), force launch Chrome directly using Intent URI
+            final strippedUrl = rawUrl.replaceFirst('https://', 'intent://');
+            final intentUrl = '$strippedUrl#Intent;scheme=https;package=com.android.chrome;end';
+            final intentUri = Uri.parse(intentUrl);
+            await launchUrl(intentUri, mode: LaunchMode.externalApplication);
+          } catch (intentError) {
+            debugPrint('Chrome intent launch failed: $intentError. Falling back to system browser...');
+            // 3. If Chrome is not installed, open standard browser
+            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+          }
         }
       } catch (oauthError) {
-        debugPrint('Custom OAuth launch failed: $oauthError. Falling back to default OAuth...');
-        await client.auth.signInWithOAuth(
-          OAuthProvider.google,
-        );
+        debugPrint('Custom OAuth launch failed: $oauthError. Showing user-friendly fallback...');
+        throw AuthException('Could not launch secure sign-in page. Please make sure Google Chrome is installed and set as default browser.');
       }
     }
   }

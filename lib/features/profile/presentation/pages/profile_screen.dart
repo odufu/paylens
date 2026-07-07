@@ -7,6 +7,8 @@ import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
 import 'package:mspay/features/profile/presentation/pages/in_app_documentation_screen.dart';
+import 'package:mspay/features/profile/presentation/pages/admin_console_screen.dart';
+import 'package:mspay/features/auth/presentation/pages/kyc_verification_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -349,7 +351,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: const Text('Security & Verification'),
                       subtitle: const Text('BVN, ID Cards & Device Limits'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                        );
+                      },
                     ),
                     const Divider(height: 1),
                     ListTile(
@@ -405,6 +411,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         );
                       },
                     ),
+                    if (authProvider.isAdmin) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(LucideIcons.userCheck, color: Theme.of(context).colorScheme.primary),
+                        title: const Text('Admin Console'),
+                        subtitle: const Text('Manage operations, accounting & marketing'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AdminConsoleScreen()),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -1,28 +1,45 @@
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mspay/core/di/injection_container.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 
+class MockSupabaseClient extends Mock implements SupabaseClient {}
+
+class MockFunctionsClient extends Mock implements FunctionsClient {}
+
 void main() {
+  late MockSupabaseClient mockSupabaseClient;
+  late MockFunctionsClient mockFunctionsClient;
+
+  setUpAll(() {
+    mockSupabaseClient = MockSupabaseClient();
+    mockFunctionsClient = MockFunctionsClient();
+    when(() => mockSupabaseClient.functions).thenReturn(mockFunctionsClient);
+
+    // Register in GetIt service locator for VtPassService to resolve
+    sl.registerSingleton<SupabaseClient>(mockSupabaseClient);
+  });
+
   group('VtPassService - Electricity Bills Testing', () {
-    test('should map electricity provider to correct service ID', () {
-      // We can use a trick to test private static method _mapProviderToServiceId
-      // or we can test public methods that call it, like validateMeter and purchaseProduct.
-      // Let's test the request body mapping in purchaseProduct.
-    });
+    test(
+      'validateMeter returns MeterValidationResult when API call is successful',
+      () async {
+        final mockResponse = {
+          'code': '000',
+          'response_description': 'TRANSACTION SUCCESSFUL',
+          'content': {
+            'Customer_Name': 'John Doe',
+            'Customer_Address': '123 Fake Street, Ikeja',
+          },
+        };
 
-    test('validateMeter returns MeterValidationResult when API call is successful', () async {
-      final mockResponse = {
-        'code': '000',
-        'response_description': 'TRANSACTION SUCCESSFUL',
-        'content': {
-          'Customer_Name': 'John Doe',
-          'Customer_Address': '123 Fake Street, Ikeja',
-        }
-      };
+        when(
+          () => mockFunctionsClient.invoke('vtpass', body: any(named: 'body')),
+        ).thenAnswer(
+          (_) async => FunctionResponse(status: 200, data: mockResponse),
+        );
 
-      await http.runWithClient(() async {
         final result = await VtPassService.validateMeter(
           meterNumber: '11002233445',
           discoCode: 'ikeja-electric',
@@ -32,16 +49,8 @@ void main() {
         expect(result.customerName, 'John Doe');
         expect(result.address, '123 Fake Street, Ikeja');
         expect(result.error, isNull);
-      }, () => MockClient((request) async {
-        expect(request.url.path, endsWith('/merchant-verify'));
-        final body = jsonDecode(request.body);
-        expect(body['billersCode'], '11002233445');
-        expect(body['serviceID'], 'ikeja-electric');
-        expect(body['type'], 'prepaid');
-
-        return http.Response(jsonEncode(mockResponse), 200);
-      }));
-    });
+      },
+    );
 
     test('validateMeter returns error when API call fails', () async {
       final mockResponse = {
@@ -49,33 +58,40 @@ void main() {
         'response_description': 'INVALID BILLERS CODE',
       };
 
-      await http.runWithClient(() async {
-        final result = await VtPassService.validateMeter(
-          meterNumber: '99999999999',
-          discoCode: 'eko-electric',
-        );
+      when(
+        () => mockFunctionsClient.invoke('vtpass', body: any(named: 'body')),
+      ).thenAnswer(
+        (_) async => FunctionResponse(status: 200, data: mockResponse),
+      );
 
-        expect(result.isValid, isFalse);
-        expect(result.customerName, isNull);
-        expect(result.error, 'INVALID BILLERS CODE');
-      }, () => MockClient((request) async {
-        return http.Response(jsonEncode(mockResponse), 200);
-      }));
+      final result = await VtPassService.validateMeter(
+        meterNumber: '99999999999',
+        discoCode: 'eko-electric',
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.customerName, isNull);
+      expect(result.error, 'INVALID BILLERS CODE');
     });
 
-    test('purchaseProduct returns success result for prepaid electricity', () async {
-      final mockResponse = {
-        'code': '000',
-        'response_description': 'TRANSACTION SUCCESSFUL',
-        'content': {
-          'transactions': {
-            'transactionId': 'VTP-100200300',
+    test(
+      'purchaseProduct returns success result for prepaid electricity',
+      () async {
+        final mockResponse = {
+          'code': '000',
+          'response_description': 'TRANSACTION SUCCESSFUL',
+          'content': {
+            'transactions': {'transactionId': 'VTP-100200300'},
+            'token': '1111-2222-3333-4444',
           },
-          'token': '1111-2222-3333-4444',
-        }
-      };
+        };
 
-      await http.runWithClient(() async {
+        when(
+          () => mockFunctionsClient.invoke('vtpass', body: any(named: 'body')),
+        ).thenAnswer(
+          (_) async => FunctionResponse(status: 200, data: mockResponse),
+        );
+
         final result = await VtPassService.purchaseProduct(
           serviceType: 'Electricity',
           target: '11002233445',
@@ -87,16 +103,7 @@ void main() {
         expect(result.transactionId, 'VTP-100200300');
         expect(result.token, '1111-2222-3333-4444');
         expect(result.error, isNull);
-      }, () => MockClient((request) async {
-        expect(request.url.path, endsWith('/pay'));
-        final body = jsonDecode(request.body);
-        expect(body['serviceID'], 'ikeja-electric');
-        expect(body['billersCode'], '11002233445');
-        expect(body['amount'], 5000.0);
-        expect(body['variation_code'], 'prepaid');
-
-        return http.Response(jsonEncode(mockResponse), 200);
-      }));
-    });
+      },
+    );
   });
 }

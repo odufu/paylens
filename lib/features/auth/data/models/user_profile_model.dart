@@ -5,6 +5,7 @@ class UserProfileModel extends UserProfileEntity {
     required super.id,
     required super.fullName,
     super.avatarUrl,
+    super.loyaltyPoints,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) {
@@ -12,6 +13,7 @@ class UserProfileModel extends UserProfileEntity {
       id: json['id'] as String,
       fullName: (json['full_name'] ?? json['fullName'] ?? 'Darlington Nnamdi') as String,
       avatarUrl: (json['avatar_url'] ?? json['avatarUrl']) as String?,
+      loyaltyPoints: (json['loyalty_points'] ?? json['loyaltyPoints'] ?? 0) as int,
     );
   }
 
@@ -20,6 +22,7 @@ class UserProfileModel extends UserProfileEntity {
       'id': id,
       'full_name': fullName,
       'avatar_url': avatarUrl,
+      'loyalty_points': loyaltyPoints,
     };
   }
 }

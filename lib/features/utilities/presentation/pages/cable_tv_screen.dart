@@ -115,7 +115,10 @@ class _CableTvScreenState extends State<CableTvScreen> {
     }
 
     final double amount = _selectedPackage!['amount'];
-    if (amount > walletProvider.balance) {
+    final fee = walletProvider.cableFee;
+    final totalDebit = amount + fee;
+
+    if (totalDebit > walletProvider.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Insufficient wallet balance.')),
       );
@@ -138,11 +141,18 @@ class _CableTvScreenState extends State<CableTvScreen> {
     if (mounted) {
       if (purchaseResult.success) {
         final bool success = await walletProvider.payBill(
-          amount: amount,
+          amount: totalDebit,
           serviceName: '$_selectedProvider Subscription',
-          billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']}',
+          billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']} (Incl. Fee: ₦$fee)',
           category: TransactionCategory.bills,
         );
+
+        if (success) {
+          final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+          if (earnedPoints > 0) {
+            await walletProvider.addLoyaltyPoints(earnedPoints);
+          }
+        }
 
         if (mounted) {
           BrandedLoadingOverlay.hide(context);
@@ -155,7 +165,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
               context,
               serviceTitle: '$_selectedProvider Subscription',
               recipient: '$_verifiedCustomerName (${_smartcardController.text})',
-              amount: amount,
+              amount: totalDebit,
               transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
               providerName: 'VTPass',
             );
@@ -165,7 +175,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
         final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
         
         final ticketId = await walletProvider.logFailedTransaction(
-          amount: amount,
+          amount: totalDebit,
           serviceName: '$_selectedProvider Subscription',
           billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']}',
           category: TransactionCategory.bills,
@@ -390,8 +400,75 @@ class _CableTvScreenState extends State<CableTvScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 32),
-                
+                const SizedBox(height: 16),
+
+                // Price Breakdown Card
+                if (_isVerified && _selectedPackage != null) ...[
+                  Builder(
+                    builder: (context) {
+                      final amount = _selectedPackage!['amount'];
+                      final fee = walletProvider.cableFee;
+                      final total = amount + fee;
+                      final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.02)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.04)
+                                : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Subscription Amount', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+                                Text(CurrencyFormatter.format(amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Convenience Fee', style: TextStyle(color: AppColors.textGrey, fontSize: 13)),
+                                Text(CurrencyFormatter.format(fee), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest)),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Total Debit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text(CurrencyFormatter.format(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryForest)),
+                              ],
+                            ),
+                            if (earnedPoints > 0) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Rewards Earned', style: TextStyle(color: AppColors.successGreen, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text('+$earnedPoints LensPoints', style: const TextStyle(color: AppColors.successGreen, fontWeight: FontWeight.bold, fontSize: 12)),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
                 // Confirm Payment Button
                 SizedBox(
                   width: double.infinity,

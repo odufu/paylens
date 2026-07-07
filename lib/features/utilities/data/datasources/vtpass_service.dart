@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:mspay/core/constants/api_constants.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mspay/core/di/injection_container.dart';
+import 'package:mspay/core/services/supabase_service.dart';
 
 class MeterValidationResult {
   final bool isValid;
@@ -139,22 +140,20 @@ class VtPassService {
     try {
       final serviceID = _mapProviderToServiceId(discoCode, 'Electricity');
       
-      final response = await http.post(
-        Uri.parse('${ApiConstants.vtPassBaseUrl}/merchant-verify'),
-        headers: {
-          'api-key': ApiConstants.vtPassApiKey,
-          'secret-key': ApiConstants.vtPassSecretKey,
-          'Content-Type': 'application/json',
+      final response = await sl<SupabaseClient>().functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'merchant-verify',
+          'body': {
+            'billersCode': meterNumber.trim(),
+            'serviceID': serviceID,
+            'type': 'prepaid', // Default to prepaid validation
+          },
         },
-        body: jsonEncode({
-          'billersCode': meterNumber.trim(),
-          'serviceID': serviceID,
-          'type': 'prepaid', // Default to prepaid validation
-        }),
       );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+      if (response.status == 200) {
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
         final code = data['code'];
         
         if (code == '000') {
@@ -173,7 +172,7 @@ class VtPassService {
       } else {
         return MeterValidationResult(
           isValid: false,
-          error: 'HTTP error ${response.statusCode} calling verification service.',
+          error: 'HTTP error ${response.status} calling verification service.',
         );
       }
     } catch (e) {
@@ -227,21 +226,19 @@ class VtPassService {
     try {
       final serviceID = _mapProviderToServiceId(provider, 'Cable TV');
       
-      final response = await http.post(
-        Uri.parse('${ApiConstants.vtPassBaseUrl}/merchant-verify'),
-        headers: {
-          'api-key': ApiConstants.vtPassApiKey,
-          'secret-key': ApiConstants.vtPassSecretKey,
-          'Content-Type': 'application/json',
+      final response = await sl<SupabaseClient>().functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'merchant-verify',
+          'body': {
+            'billersCode': smartcardNumber.trim(),
+            'serviceID': serviceID,
+          },
         },
-        body: jsonEncode({
-          'billersCode': smartcardNumber.trim(),
-          'serviceID': serviceID,
-        }),
       );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+      if (response.status == 200) {
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
         final code = data['code'];
         
         if (code == '000') {
@@ -260,7 +257,7 @@ class VtPassService {
       } else {
         return SmartcardValidationResult(
           isValid: false,
-          error: 'HTTP error ${response.statusCode} calling verification service.',
+          error: 'HTTP error ${response.status} calling verification service.',
         );
       }
     } catch (e) {
@@ -300,18 +297,16 @@ class VtPassService {
         body['variation_code'] = finalVariation;
       }
 
-      final response = await http.post(
-        Uri.parse('${ApiConstants.vtPassBaseUrl}/pay'),
-        headers: {
-          'api-key': ApiConstants.vtPassApiKey,
-          'secret-key': ApiConstants.vtPassSecretKey,
-          'Content-Type': 'application/json',
+      final response = await sl<SupabaseClient>().functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'pay',
+          'body': body,
         },
-        body: jsonEncode(body),
       );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
+      if (response.status == 200) {
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
         final code = data['code'];
         
         if (code == '000') {
@@ -333,7 +328,7 @@ class VtPassService {
       } else {
         return VtPassPurchaseResult(
           success: false,
-          error: 'HTTP error ${response.statusCode} returned from payment server.',
+          error: 'HTTP error ${response.status} returned from payment server.',
         );
       }
     } catch (e) {

@@ -15,6 +15,9 @@ import 'package:mspay/features/utilities/presentation/pages/cable_tv_screen.dart
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
 import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/airtime_to_cash_screen.dart';
+import 'package:mspay/features/auth/presentation/pages/kyc_verification_screen.dart';
+import 'package:mspay/features/notifications/presentation/pages/notification_screen.dart';
+import 'package:mspay/features/notifications/presentation/state/notification_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -118,17 +121,59 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                     // Notification Bell
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.08),
-                      ),
-                      child: const Icon(
-                        LucideIcons.bell,
-                        color: AppColors.textLight,
-                        size: 20,
-                      ),
+                    Consumer<NotificationProvider>(
+                      builder: (context, notifProvider, child) {
+                        final count = notifProvider.unreadCount;
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                            );
+                          },
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.08),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.bell,
+                                  color: AppColors.textLight,
+                                  size: 20,
+                                ),
+                              ),
+                              if (count > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.errorRed,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -175,6 +220,33 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentLime.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              LucideIcons.sparkles,
+                              color: AppColors.accentLime,
+                              size: 12,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${walletProvider.loyaltyPoints} LensPoints',
+                              style: const TextStyle(
+                                color: AppColors.accentLime,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -209,9 +281,65 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (!walletProvider.kycVerified) ...[
+                  const SizedBox(height: 18),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.accentLime.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.alertTriangle,
+                            color: AppColors.accentLime,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Account Unverified',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Verify your identity (BVN) to activate your virtual bank accounts.',
+                                  style: TextStyle(
+                                    color: AppColors.textLightGrey.withOpacity(0.8),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            LucideIcons.chevronRight,
+                            color: AppColors.accentLime,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 18),
 
-                // Your Wallet (Monnify Services)
+                // Your Wallet (Paystack Services)
                 // Most Popular Transactions
                 Container(
                   width: double.infinity,
@@ -244,18 +372,22 @@ class DashboardScreen extends StatelessWidget {
                                   builder: (_) => const AirtimeDataScreen(
                                     isData: true,
                                     initialProvider: 'MTN',
+                                    initialCategory: 'SME Data',
+                                    initialPackageId: 'mtn-sme-1',
                                   ),
                                 ),
                               ),
                             ),
                             _buildPopularTransactionPill(
-                              label: 'Airtel CG 1.5GB',
+                              label: 'Airtel CG 1GB',
                               icon: LucideIcons.smartphone,
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => const AirtimeDataScreen(
                                     isData: true,
                                     initialProvider: 'Airtel',
+                                    initialCategory: 'Corporate Gifting',
+                                    initialPackageId: 'airtel-cg-1',
                                   ),
                                 ),
                               ),
@@ -268,6 +400,8 @@ class DashboardScreen extends StatelessWidget {
                                   builder: (_) => const AirtimeDataScreen(
                                     isData: true,
                                     initialProvider: 'Glo',
+                                    initialCategory: 'SME Data',
+                                    initialPackageId: 'glo-sme-2',
                                   ),
                                 ),
                               ),
@@ -671,6 +805,7 @@ class DashboardScreen extends StatelessWidget {
       iconBg = const Color(0xFFFFFDE7);
       iconColor = const Color(0xFFFBC02D);
     } else if (tx.title.toLowerCase().contains('funding') ||
+        tx.title.toLowerCase().contains('paystack') ||
         tx.title.toLowerCase().contains('monnify') ||
         tx.title.toLowerCase().contains('wema')) {
       itemIcon = LucideIcons.wallet;

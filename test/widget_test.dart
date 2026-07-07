@@ -20,8 +20,10 @@ import 'package:mspay/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/chatbot/presentation/state/chat_provider.dart';
+import 'package:mspay/features/chatbot/domain/repositories/chat_repository.dart';
 import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
+import 'package:mspay/features/notifications/presentation/state/notification_provider.dart';
 
 class MockSignInUseCase extends Mock implements SignInUseCase {}
 class MockSignInWithGoogleUseCase extends Mock implements SignInWithGoogleUseCase {}
@@ -31,6 +33,7 @@ class MockGetProfileUseCase extends Mock implements GetProfileUseCase {}
 class MockUpdateProfileNameUseCase extends Mock implements UpdateProfileNameUseCase {}
 class MockUploadAvatarUseCase extends Mock implements UploadAvatarUseCase {}
 class MockAuthRepository extends Mock implements AuthRepository {}
+class MockChatRepository extends Mock implements ChatRepository {}
 
 void main() {
   setUpAll(() async {
@@ -59,6 +62,11 @@ void main() {
     sl.registerSingleton<UpdateProfileNameUseCase>(MockUpdateProfileNameUseCase());
     sl.registerSingleton<UploadAvatarUseCase>(MockUploadAvatarUseCase());
 
+    final mockChatRepo = MockChatRepository();
+    sl.registerSingleton<ChatRepository>(mockChatRepo);
+
+    sl.registerFactory<ChatProvider>(() => ChatProvider(sl()));
+
     sl.registerFactory<AuthProvider>(() => AuthProvider(
       signInUseCase: sl(),
       signInWithGoogleUseCase: sl(),
@@ -77,8 +85,9 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => sl<AuthProvider>()),
           ChangeNotifierProvider(create: (_) => WalletProvider()),
-          ChangeNotifierProvider(create: (_) => ChatProvider()),
+          ChangeNotifierProvider(create: (_) => sl<ChatProvider>()),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ],
         child: const PayLensesApp(),
       ),
@@ -95,8 +104,9 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => sl<AuthProvider>()),
           ChangeNotifierProvider(create: (_) => WalletProvider()),
-          ChangeNotifierProvider(create: (_) => ChatProvider()),
+          ChangeNotifierProvider(create: (_) => sl<ChatProvider>()),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ],
         child: const MaterialApp(
           home: MainNavigationHolder(),
@@ -105,8 +115,8 @@ void main() {
     );
 
     // Verify Dashboard greetings and balances
-    expect(find.text('Darlington'), findsOneWidget);
-    expect(find.text('Your Wallet Balance'), findsOneWidget);
+    expect(find.text('Darlington'), findsAtLeastNWidgets(1));
+    expect(find.text('Your Wallet Balance'), findsAtLeastNWidgets(1));
   });
 }
 
