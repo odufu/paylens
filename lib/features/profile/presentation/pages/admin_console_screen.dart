@@ -5,6 +5,7 @@ import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
+import 'package:mspay/features/profile/presentation/pages/in_app_documentation_screen.dart';
 
 class AdminConsoleScreen extends StatefulWidget {
   const AdminConsoleScreen({super.key});
@@ -249,6 +250,15 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
             ],
           ),
           actions: [
+            IconButton(
+              icon: const Icon(LucideIcons.fileText, size: 20),
+              tooltip: 'Developer Documentation',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(LucideIcons.refreshCw, size: 20),
               onPressed: _loadOperationsData,

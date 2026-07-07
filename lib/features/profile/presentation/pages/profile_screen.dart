@@ -6,7 +6,7 @@ import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
-import 'package:mspay/features/profile/presentation/pages/in_app_documentation_screen.dart';
+import 'package:mspay/features/profile/presentation/pages/account_settings_screen.dart';
 import 'package:mspay/features/profile/presentation/pages/admin_console_screen.dart';
 import 'package:mspay/features/auth/presentation/pages/kyc_verification_screen.dart';
 
@@ -18,23 +18,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  bool _isSavingName = false;
   bool _isUploadingImage = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    _nameController = TextEditingController(text: authProvider.userFullName);
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
 
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
@@ -81,43 +65,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _isUploadingImage = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _saveProfileName() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isSavingName = true;
-    });
-
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.updateProfileName(_nameController.text.trim());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile name updated successfully!'),
-            backgroundColor: AppColors.successGreen,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update name: $e'),
-            backgroundColor: AppColors.errorRed,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSavingName = false;
         });
       }
     }
@@ -252,89 +199,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Form to Edit Name
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                color: Theme.of(context).cardColor,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Account Settings',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryForest,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: const Icon(LucideIcons.user, color: AppColors.primaryForest),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: AppColors.primaryForest, width: 2),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your full name';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _isSavingName ? null : _saveProfileName,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryForest,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isSavingName
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Save Changes',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
             // Additional List Tiles
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -346,6 +210,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
+                    ListTile(
+                      leading: Icon(LucideIcons.user, color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Account Settings'),
+                      subtitle: const Text('Edit name and personal details'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       leading: Icon(LucideIcons.shieldCheck, color: Theme.of(context).colorScheme.primary),
                       title: const Text('Security & Verification'),
@@ -396,18 +272,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const ChatbotScreen()),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Icon(LucideIcons.fileText, color: Theme.of(context).colorScheme.primary),
-                      title: const Text('Developer Documentation'),
-                      subtitle: const Text('In-app service & API guides'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
                         );
                       },
                     ),

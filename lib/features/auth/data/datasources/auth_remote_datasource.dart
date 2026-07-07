@@ -123,8 +123,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           }
         }
       } catch (oauthError) {
-        debugPrint('Custom OAuth launch failed: $oauthError. Showing user-friendly fallback...');
-        throw AuthException('Could not launch secure sign-in page. Please make sure Google Chrome is installed and set as default browser.');
+        debugPrint('Custom OAuth launch failed: $oauthError');
+        final errStr = oauthError.toString();
+        if (errStr.contains('HandshakeException') || 
+            errStr.contains('SocketException') || 
+            errStr.contains('Network') ||
+            errStr.contains('connection')) {
+          throw AuthException('Network connection failed. Please check your internet connection and try again.');
+        }
+        throw AuthException('Could not launch secure sign-in page: ${errStr.replaceAll('Exception: ', '')}');
       }
     }
   }

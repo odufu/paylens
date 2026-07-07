@@ -178,3 +178,97 @@ CREATE POLICY "Users can view their own notifications" ON public.notifications
 
 CREATE POLICY "Users can update their own notifications" ON public.notifications
     FOR UPDATE USING (auth.uid() = profile_id);
+
+
+-- 9. Loyalty, Referrals and Settlement Reconciliation Additions
+
+-- Alter profiles to support cashback
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cashback_balance NUMERIC(15, 2) DEFAULT 0.00 NOT NULL;
+
+-- Referrals table
+CREATE TABLE IF NOT EXISTS public.referrals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referrer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    referred_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+    reward_amount NUMERIC(15, 2) DEFAULT 100.00 NOT NULL,
+    is_completed BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Loyalty Ledgers table
+CREATE TABLE IF NOT EXISTS public.loyalty_ledgers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+    points_change INTEGER DEFAULT 0 NOT NULL,
+    cashback_change NUMERIC(15, 2) DEFAULT 0.00 NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('earn_cashback', 'earn_points', 'redeem_points')),
+    description TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Settlement Ledger table
+CREATE TABLE IF NOT EXISTS public.settlement_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id UUID REFERENCES public.transactions(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    intake_amount NUMERIC(15, 2) NOT NULL,
+    expected_paystack_settlement NUMERIC(15, 2) NOT NULL,
+    vtpass_cost NUMERIC(15, 2),
+    net_profit NUMERIC(15, 2),
+    reconciliation_status TEXT NOT NULL DEFAULT 'pending' CHECK (reconciliation_status IN ('pending', 'matched', 'discrepancy')),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loyalty_ledgers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settlement_ledger ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Users can view their referrals" ON public.referrals;
+CREATE POLICY "Users can view their referrals" ON public.referrals
+    FOR SELECT USING (auth.uid() = referrer_id OR auth.uid() = referred_id);
+
+DROP POLICY IF EXISTS "Users can view their loyalty ledger" ON public.loyalty_ledgers;
+CREATE POLICY "Users can view their loyalty ledger" ON public.loyalty_ledgers
+    FOR SELECT USING (auth.uid() = profile_id);
+
+DROP POLICY IF EXISTS "Admins can view settlement ledger" ON public.settlement_ledger;
+CREATE POLICY "Admins can view settlement ledger" ON public.settlement_ledger
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() 
+            AND (email LIKE '%admin%' OR email LIKE '%@paylenses.com')
+        )
+    );
+
+-- reward_loyalty function
+CREATE OR REPLACE FUNCTION public.reward_loyalty(
+    user_id UUID,
+    cashback_amount NUMERIC(15, 2),
+    points_amount INTEGER,
+    tx_id UUID,
+    tx_description TEXT
+) RETURNS VOID AS $$
+BEGIN
+    -- 1. Update profiles balance & points
+    UPDATE public.profiles
+    SET cashback_balance = cashback_balance + cashback_amount,
+        loyalty_points = loyalty_points + points_amount
+    WHERE id = user_id;
+
+    -- 2. Insert into loyalty ledger for cashback
+    IF cashback_amount > 0 THEN
+        INSERT INTO public.loyalty_ledgers (profile_id, transaction_id, points_change, cashback_change, type, description)
+        VALUES (user_id, tx_id, 0, cashback_amount, 'earn_cashback', tx_description);
+    END IF;
+
+    -- 3. Insert into loyalty ledger for points
+    IF points_amount > 0 THEN
+        INSERT INTO public.loyalty_ledgers (profile_id, transaction_id, points_change, cashback_change, type, description)
+        VALUES (user_id, tx_id, points_amount, 0, 'earn_points', tx_description);
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

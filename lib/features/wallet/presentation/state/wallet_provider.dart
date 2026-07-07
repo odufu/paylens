@@ -225,7 +225,7 @@ class WalletProvider extends ChangeNotifier {
             .eq('id', uid);
 
         // Insert transaction record
-        await SupabaseService.client.from('transactions').insert({
+        final insertRes = await SupabaseService.client.from('transactions').insert({
           'profile_id': uid,
           'title': 'Wallet Funding',
           'subtitle': 'Bank Transfer via $sourceBank',
@@ -234,7 +234,26 @@ class WalletProvider extends ChangeNotifier {
           'status': 'success',
           'reference': reference,
           'provider': 'Paystack',
-        });
+        }).select('id').maybeSingle();
+
+        if (insertRes != null && insertRes['id'] != null) {
+          final txId = insertRes['id'];
+          try {
+            // Expected Paystack settlement is amount minus 1.5% gateway fee
+            final expectedSettlement = amount * 0.985;
+            await SupabaseService.client.from('settlement_ledger').insert({
+              'transaction_id': txId,
+              'user_id': uid,
+              'intake_amount': amount,
+              'expected_paystack_settlement': expectedSettlement,
+              'vtpass_cost': null, // No utility cost associated with funding yet
+              'net_profit': expectedSettlement - amount, // Net profit after intake fee (negative initially)
+              'reconciliation_status': 'pending',
+            });
+          } catch (settleErr) {
+            debugPrint('Failed to log funding settlement ledger entry: $settleErr');
+          }
+        }
         
         await _syncWithSupabase();
         return;
@@ -527,7 +546,7 @@ class WalletProvider extends ChangeNotifier {
             .eq('id', uid);
 
         // Insert transaction record
-        await SupabaseService.client.from('transactions').insert({
+        final insertRes = await SupabaseService.client.from('transactions').insert({
           'profile_id': uid,
           'title': serviceName,
           'subtitle': billDetails,
@@ -536,7 +555,50 @@ class WalletProvider extends ChangeNotifier {
           'status': 'success',
           'reference': reference,
           'provider': 'VTPass',
-        });
+        }).select('id').maybeSingle();
+
+        if (insertRes != null && insertRes['id'] != null) {
+          final txId = insertRes['id'];
+          
+          // 1. Calculate and Award Loyalty & Cashback (1% cashback, 1 point per ₦100)
+          final double cashback = amount * 0.01;
+          final int points = (amount / 100).floor();
+          
+          try {
+            await SupabaseService.client.rpc('reward_loyalty', params: {
+              'user_id': uid,
+              'cashback_amount': cashback,
+              'points_amount': points,
+              'tx_id': txId,
+              'tx_description': 'Cashback & points earned on $serviceName'
+            });
+          } catch (loyaltyErr) {
+            debugPrint('Failed to reward loyalty in Supabase: $loyaltyErr');
+          }
+
+          // 2. Insert into Settlement & Profit Ledger
+          try {
+            double discountRate = 0.03; // Default 3% commission discount
+            if (serviceName.toLowerCase().contains('data')) {
+              discountRate = 0.04;
+            } else if (serviceName.toLowerCase().contains('electricity') || serviceName.toLowerCase().contains('cable')) {
+              discountRate = 0.0;
+            }
+            final vtpassCost = amount * (1.0 - discountRate);
+
+            await SupabaseService.client.from('settlement_ledger').insert({
+              'transaction_id': txId,
+              'user_id': uid,
+              'intake_amount': amount,
+              'expected_paystack_settlement': amount,
+              'vtpass_cost': vtpassCost,
+              'net_profit': amount - vtpassCost,
+              'reconciliation_status': 'pending',
+            });
+          } catch (settleErr) {
+            debugPrint('Failed to log settlement ledger entry: $settleErr');
+          }
+        }
 
         await _syncWithSupabase();
         return true;
