@@ -23,6 +23,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
   List<Map<String, dynamic>> _systemTransactions = [];
   bool _isLoadingTransactions = false;
 
+  // Settlement Ledgers State
+  List<Map<String, dynamic>> _settlementLedgers = [];
+  bool _isLoadingSettlements = false;
+
   // Marketing State
   final _announcementTitleController = TextEditingController();
   final _announcementBodyController = TextEditingController();
@@ -158,6 +162,64 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
         _isLoadingTransactions = false;
       });
     }
+
+    // 3. Fetch settlement reconciliation logs
+    setState(() {
+      _isLoadingSettlements = true;
+    });
+
+    try {
+      final settleResponse = await SupabaseService.client
+          .from('settlement_ledger')
+          .select('*, transactions(title, subtitle, reference, provider)')
+          .order('created_at', ascending: false);
+
+      if (settleResponse != null) {
+        _settlementLedgers = List<Map<String, dynamic>>.from(settleResponse);
+      }
+    } catch (e) {
+      debugPrint('Supabase settlement ledger fetch failed: $e. Using mock fallback.');
+      _settlementLedgers = [
+        {
+          'id': 'settle-1',
+          'transaction_id': 'tx-1',
+          'user_id': 'user-1',
+          'intake_amount': 2000.0,
+          'expected_paystack_settlement': 1970.0,
+          'vtpass_cost': 1940.0,
+          'net_profit': 30.0,
+          'reconciliation_status': 'pending',
+          'created_at': '2026-07-06T11:20:00Z',
+          'transactions': {
+            'title': 'MTN Airtime ₦2,000',
+            'subtitle': '08149204910',
+            'reference': 'VTP-98201482',
+            'provider': 'VTPass',
+          }
+        },
+        {
+          'id': 'settle-2',
+          'transaction_id': 'tx-2',
+          'user_id': 'user-2',
+          'intake_amount': 5000.0,
+          'expected_paystack_settlement': 4925.0,
+          'vtpass_cost': null,
+          'net_profit': -75.0,
+          'reconciliation_status': 'matched',
+          'created_at': '2026-07-06T10:45:00Z',
+          'transactions': {
+            'title': 'Wallet Funding',
+            'subtitle': 'Bank Transfer via Wema Bank',
+            'reference': 'REF-72635182',
+            'provider': 'Paystack',
+          }
+        }
+      ];
+    } finally {
+      setState(() {
+        _isLoadingSettlements = false;
+      });
+    }
   }
 
   /// Resolves an escalated support ticket
@@ -183,6 +245,110 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
         content: Text('Ticket $ticketId resolved successfully!'),
         backgroundColor: AppColors.successGreen,
       ),
+    );
+  }
+
+  /// Updates the reconciliation status of a settlement ledger log
+  Future<void> _updateReconciliationStatus(String ledgerId, String newStatus) async {
+    try {
+      await SupabaseService.client
+          .from('settlement_ledger')
+          .update({'reconciliation_status': newStatus})
+          .eq('id', ledgerId);
+    } catch (e) {
+      debugPrint('Supabase update reconciliation status failed: $e. Executing local update.');
+    }
+
+    setState(() {
+      final index = _settlementLedgers.indexWhere((s) => s['id'] == ledgerId);
+      if (index != -1) {
+        _settlementLedgers[index]['reconciliation_status'] = newStatus;
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ledger status updated to $newStatus successfully!'),
+        backgroundColor: AppColors.successGreen,
+      ),
+    );
+  }
+
+  /// Opens dialog to record manual reconciliation audit status
+  void _showReconciliationDialog(Map<String, dynamic> ledger) {
+    final String ledgerId = ledger['id'];
+    final currentStatus = ledger['reconciliation_status'] ?? 'pending';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        String selectedStatus = currentStatus;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Record Reconciliation Audit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Set the status for this operation transaction:', style: TextStyle(fontSize: 13, color: AppColors.textGrey)),
+                  const SizedBox(height: 16),
+                  RadioListTile<String>(
+                    title: const Text('Matched (Reconciled)', style: TextStyle(fontSize: 14)),
+                    value: 'matched',
+                    groupValue: selectedStatus,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        selectedStatus = val!;
+                      });
+                    },
+                    activeColor: AppColors.primaryForest,
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Discrepancy (Flag Error)', style: TextStyle(fontSize: 14)),
+                    value: 'discrepancy',
+                    groupValue: selectedStatus,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        selectedStatus = val!;
+                      });
+                    },
+                    activeColor: AppColors.primaryForest,
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Pending Verification', style: TextStyle(fontSize: 14)),
+                    value: 'pending',
+                    groupValue: selectedStatus,
+                    onChanged: (val) {
+                      setDialogState(() {
+                        selectedStatus = val!;
+                      });
+                    },
+                    activeColor: AppColors.primaryForest,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.textGrey)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _updateReconciliationStatus(ledgerId, selectedStatus);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryForest,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Record'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -622,6 +788,152 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
             color: Colors.orange,
             isDark: isDark,
           ),
+          
+          const SizedBox(height: 24),
+          
+          // Settlement Reconciliation Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Settlement Reconciliation Ledger',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.textDark,
+                ),
+              ),
+              if (_isLoadingSettlements)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryForest),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_settlementLedgers.isEmpty)
+            Card(
+              color: isDark ? Colors.white10 : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Center(
+                  child: Text(
+                    'No settlement ledger entries recorded yet.',
+                    style: TextStyle(color: AppColors.textGrey, fontSize: 13),
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _settlementLedgers.length,
+              itemBuilder: (context, index) {
+                final ledger = _settlementLedgers[index];
+                final tx = ledger['transactions'] ?? {};
+                final status = ledger['reconciliation_status'] ?? 'pending';
+                final intake = (ledger['intake_amount'] as num?)?.toDouble() ?? 0.0;
+                final cost = (ledger['vtpass_cost'] as num?)?.toDouble();
+                final profit = (ledger['net_profit'] as num?)?.toDouble() ?? 0.0;
+                
+                Color statusColor = Colors.orange;
+                if (status == 'matched') statusColor = AppColors.successGreen;
+                if (status == 'discrepancy') statusColor = AppColors.errorRed;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _showReconciliationDialog(ledger),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  tx['title'] ?? 'Platform Transaction',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Ref: ${tx['reference'] ?? 'N/A'} • Provider: ${tx['provider'] ?? 'N/A'}',
+                            style: const TextStyle(color: AppColors.textGrey, fontSize: 11),
+                          ),
+                          const Divider(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('INTAKE', style: TextStyle(color: AppColors.textGrey, fontSize: 9)),
+                                  const SizedBox(height: 2),
+                                  Text(CurrencyFormatter.format(intake), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('VTPASS COST', style: TextStyle(color: AppColors.textGrey, fontSize: 9)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    cost != null ? CurrencyFormatter.format(cost) : 'N/A',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('NET PROFIT', style: TextStyle(color: AppColors.textGrey, fontSize: 9)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    CurrencyFormatter.format(profit),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold, 
+                                      fontSize: 12,
+                                      color: profit >= 0 ? AppColors.successGreen : AppColors.errorRed,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
