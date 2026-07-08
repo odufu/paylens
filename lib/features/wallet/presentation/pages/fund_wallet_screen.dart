@@ -69,12 +69,14 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
     });
 
     try {
+      BrandedLoadingOverlay.show(context, message: 'Initializing payment...');
       final authUrl = await walletProvider.initializePayment(amount);
       if (authUrl == null || authUrl.isEmpty) {
         throw Exception('Authorization URL is empty.');
       }
 
       if (mounted) {
+        BrandedLoadingOverlay.hide(context);
         // Open the payment inside our custom, controlled WebView frame
         final bool? success = await Navigator.push<bool>(
           context,
@@ -91,6 +93,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
       _depositController.clear();
     } catch (e) {
       if (mounted) {
+        BrandedLoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to initialize payment: ${e.toString().replaceAll('Exception: ', '')}'),
@@ -282,7 +285,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                                 Icon(LucideIcons.creditCard, size: 20),
                                 SizedBox(width: 8),
                                 Text(
-                                  'Regular Pay',
+                                  'Fund Wallet',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                               ],
