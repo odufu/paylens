@@ -335,7 +335,7 @@ class VtPassService {
       debugPrint('VTPass Purchase Exception: $e');
       return VtPassPurchaseResult(
         success: false,
-        error: 'Network connection error during utility purchase checkout.',
+        error: 'Network connection error during utility purchase checkout: $e',
       );
     }
   }
