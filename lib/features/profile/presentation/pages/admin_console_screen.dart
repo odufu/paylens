@@ -763,10 +763,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.teal.shade950 : Colors.teal.shade50,
+                    color: isDark ? Colors.teal.shade900 : Colors.teal.shade50,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isDark ? Colors.teal.shade850 : Colors.teal.shade200,
+                      color: isDark ? Colors.teal.shade800 : Colors.teal.shade200,
                     ),
                   ),
                   child: Column(
