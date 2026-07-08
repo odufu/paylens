@@ -339,4 +339,28 @@ class VtPassService {
       );
     }
   }
+
+  /// Fetches the current VTPass Vending Wallet Balance (Admin only)
+  static Future<double?> fetchBalance() async {
+    try {
+      final response = await sl<SupabaseClient>().functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'balance',
+          'method': 'GET',
+        },
+      );
+
+      if (response.status == 200) {
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+        if (data['code'] == '000') {
+          final content = data['content'] ?? {};
+          return (content['balance'] as num?)?.toDouble();
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch VTPass balance: $e');
+    }
+    return null;
+  }
 }

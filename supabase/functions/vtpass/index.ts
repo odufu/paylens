@@ -1,11 +1,16 @@
-// Supabase serverless function proxying VTPass billing operations
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const VTPASS_API_KEY = Deno.env.get("VTPASS_API_KEY") || "";
 const VTPASS_PUBLIC_KEY = Deno.env.get("VTPASS_PUBLIC_KEY") || "";
 const VTPASS_SECRET_KEY = Deno.env.get("VTPASS_SECRET_KEY") || "";
-const VTPASS_BASE_URL = "https://sandbox.vtpass.com/api";
 
-Deno.serve(async (req) => {
+// Toggle live vs sandbox URL dynamically based on environment
+const VTPASS_ENV = Deno.env.get("VTPASS_ENVIRONMENT") || "sandbox";
+const VTPASS_BASE_URL = VTPASS_ENV.toLowerCase() === "live"
+  ? "https://api-service.vtpass.com/api"
+  : "https://sandbox.vtpass.com/api";
+
+serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -18,23 +23,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { endpoint, body } = await req.json();
+    const { endpoint, body, method = "POST" } = await req.json();
 
     if (!VTPASS_API_KEY || !VTPASS_PUBLIC_KEY || !VTPASS_SECRET_KEY) {
       throw new Error("VTPass credentials are not fully configured in Supabase environment secrets.");
     }
 
-    const headers = {
+    const headers: Record<String, String> = {
       "api-key": VTPASS_API_KEY,
       "public-key": VTPASS_PUBLIC_KEY,
       "secret-key": VTPASS_SECRET_KEY,
       "Content-Type": "application/json",
     };
 
-    const response = await fetch(`${VTPASS_BASE_URL}/${endpoint}`, {
-      method: "POST",
+    const isGet = method.toUpperCase() === "GET";
+    const requestUrl = `${VTPASS_BASE_URL}/${endpoint}`;
+
+    const response = await fetch(requestUrl, {
+      method: method.toUpperCase(),
       headers,
-      body: JSON.stringify(body),
+      body: isGet ? undefined : JSON.stringify(body),
     });
 
     const data = await response.json();
@@ -47,7 +55,7 @@ Deno.serve(async (req) => {
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: {

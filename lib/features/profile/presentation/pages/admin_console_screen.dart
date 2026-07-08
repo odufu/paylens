@@ -6,6 +6,7 @@ import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/profile/presentation/pages/in_app_documentation_screen.dart';
+import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 
 class AdminConsoleScreen extends StatefulWidget {
   const AdminConsoleScreen({super.key});
@@ -26,6 +27,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
   // Settlement Ledgers State
   List<Map<String, dynamic>> _settlementLedgers = [];
   bool _isLoadingSettlements = false;
+
+  // VTPass Wallet Balance State
+  double? _vtpassBalance;
+  bool _isLoadingVTPassBalance = false;
 
   // Marketing State
   final _announcementTitleController = TextEditingController();
@@ -218,6 +223,25 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
     } finally {
       setState(() {
         _isLoadingSettlements = false;
+      });
+    }
+
+    // 4. Fetch VTPass vending balance
+    setState(() {
+      _isLoadingVTPassBalance = true;
+    });
+    try {
+      final bal = await VtPassService.fetchBalance();
+      if (bal != null) {
+        setState(() {
+          _vtpassBalance = bal;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load VTPass balance: $e');
+    } finally {
+      setState(() {
+        _isLoadingVTPassBalance = false;
       });
     }
   }
@@ -678,54 +702,144 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
           const SizedBox(height: 16),
 
           // Total liquid reserves
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primaryForest,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryForest.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'NET LIQUID RESERVE (PAYSTACK ESCROW)',
-                  style: TextStyle(
-                    color: AppColors.accentLime,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryForest,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryForest.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'PAYSTACK RESERVES',
+                        style: TextStyle(
+                          color: AppColors.accentLime,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        CurrencyFormatter.format(netLiquidity),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(LucideIcons.shieldCheck, color: AppColors.accentLime, size: 12),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              netLiquidity >= 0 ? 'Reserve Healthy' : 'Deficit Warning',
+                              style: const TextStyle(color: Colors.white70, fontSize: 10),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  CurrencyFormatter.format(netLiquidity),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 28,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(LucideIcons.heart, color: AppColors.accentLime, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      netLiquidity >= 0 ? 'Liquidity Reserve is Healthy' : 'Liquidity Deficit Warning',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.teal.shade950 : Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.teal.shade850 : Colors.teal.shade200,
                     ),
-                  ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'VTPASS VENDING FLOAT',
+                        style: TextStyle(
+                          color: isDark ? AppColors.accentLime : AppColors.primaryForest,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      _isLoadingVTPassBalance
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryForest),
+                            )
+                          : Text(
+                              _vtpassBalance != null
+                                  ? CurrencyFormatter.format(_vtpassBalance!)
+                                  : '₦0.00',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : AppColors.textDark,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                              ),
+                            ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.refreshCw,
+                            color: isDark ? AppColors.accentLime : AppColors.primaryForest,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                setState(() {
+                                  _isLoadingVTPassBalance = true;
+                                });
+                                final bal = await VtPassService.fetchBalance();
+                                if (bal != null) {
+                                  setState(() {
+                                    _vtpassBalance = bal;
+                                  });
+                                }
+                                setState(() {
+                                  _isLoadingVTPassBalance = false;
+                                });
+                              },
+                              child: Text(
+                                _isLoadingVTPassBalance ? 'Syncing...' : 'Sync Balance',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : AppColors.textDark.withOpacity(0.7),
+                                  fontSize: 10,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
