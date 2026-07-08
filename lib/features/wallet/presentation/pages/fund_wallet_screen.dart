@@ -7,6 +7,7 @@ import 'package:mspay/core/utils/currency_formatter.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/presentation/pages/paystack_webview_page.dart';
+import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 
 class FundWalletScreen extends StatefulWidget {
   const FundWalletScreen({super.key});
@@ -197,7 +198,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Fund your digital wallet instantly using cards, bank transfer, or USSD codes. Powered securely by Paystack.',
+                      'Fund your digital wallet instantly using cards, bank transfer, or USSD codes.',
                       style: textTheme.bodyMedium?.copyWith(
                         color: AppColors.primaryForest,
                         fontWeight: FontWeight.w600,
@@ -270,13 +271,10 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                         ),
                       ),
                       child: _isInitializingPayment
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
+                              child: BrandedSpinner(radius: 12),
                             )
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -284,7 +282,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                                 Icon(LucideIcons.creditCard, size: 20),
                                 SizedBox(width: 8),
                                 Text(
-                                  'Pay with Paystack',
+                                  'Regular Pay',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                 ),
                               ],
