@@ -67,6 +67,16 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       'color': const Color(0xFF006644),
       'textColor': Colors.white,
     },
+    {
+      'name': 'Smile',
+      'color': const Color(0xFFFF6600),
+      'textColor': Colors.white,
+    },
+    {
+      'name': 'Spectranet',
+      'color': const Color(0xFF003366),
+      'textColor': Colors.white,
+    },
   ];
 
   List<Map<String, dynamic>> _getFilteredPackages() {
@@ -202,6 +212,45 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
             'name': 'MTN 6GB (7 Days)',
             'amount': 1500.0,
             'variation': 'mtn-20hrs-1500',
+            'duration': '7 Days',
+          },
+        ];
+      }
+      if (provider == 'smile') {
+        return [
+          {
+            'id': 'smile-d-1',
+            'name': 'Smile 1GB Flexi (1 Day)',
+            'amount': 300.0,
+            'variation': '624',
+            'duration': '24 Hrs',
+          },
+          {
+            'id': 'smile-d-2.5',
+            'name': 'Smile 2.5GB Flexi (2 Days)',
+            'amount': 500.0,
+            'variation': '625',
+            'duration': '2 Days',
+          },
+          {
+            'id': 'smile-w-1',
+            'name': 'Smile 1GB Flexi-Weekly (7 Days)',
+            'amount': 500.0,
+            'variation': '626',
+            'duration': '7 Days',
+          },
+          {
+            'id': 'smile-w-2',
+            'name': 'Smile 2GB Flexi-Weekly (7 Days)',
+            'amount': 1000.0,
+            'variation': '627',
+            'duration': '7 Days',
+          },
+          {
+            'id': 'smile-w-6',
+            'name': 'Smile 6GB Flexi-Weekly (7 Days)',
+            'amount': 1500.0,
+            'variation': '628',
             'duration': '7 Days',
           },
         ];
@@ -373,6 +422,93 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           'name': 'Glo 18.25GB Monthly',
           'amount': 5000.0,
           'variation': 'glo5000',
+          'duration': '30 Days',
+        },
+      ];
+    }
+
+    if (provider == 'smile') {
+      return [
+        {
+          'id': 'smile-m-1.5',
+          'name': 'Smile 1.5GB Bigga Monthly',
+          'amount': 1000.0,
+          'variation': '606',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'smile-m-2',
+          'name': 'Smile 2GB Bigga Monthly',
+          'amount': 1200.0,
+          'variation': '607',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'smile-m-3',
+          'name': 'Smile 3GB Bigga Monthly',
+          'amount': 1500.0,
+          'variation': '608',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'smile-m-5',
+          'name': 'Smile 5GB Bigga Monthly',
+          'amount': 2000.0,
+          'variation': '620',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'smile-m-10',
+          'name': 'Smile 10GB Bigga Monthly',
+          'amount': 3500.0,
+          'variation': '611',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'smile-m-20',
+          'name': 'Smile 20GB Bigga Monthly',
+          'amount': 6000.0,
+          'variation': '614',
+          'duration': '30 Days',
+        },
+      ];
+    }
+
+    if (provider == 'spectranet') {
+      return [
+        {
+          'id': 'spectranet-m-1000',
+          'name': 'Spectranet ₦1,000 Plan',
+          'amount': 1000.0,
+          'variation': 'vt-1000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'spectranet-m-2000',
+          'name': 'Spectranet ₦2,000 Plan',
+          'amount': 2000.0,
+          'variation': 'vt-2000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'spectranet-m-5000',
+          'name': 'Spectranet ₦5,000 Plan',
+          'amount': 5000.0,
+          'variation': 'vt-5000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'spectranet-m-7000',
+          'name': 'Spectranet ₦7,000 Plan',
+          'amount': 7000.0,
+          'variation': 'vt-7000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'spectranet-m-10000',
+          'name': 'Spectranet ₦10,000 Plan',
+          'amount': 10000.0,
+          'variation': 'vt-10000',
           'duration': '30 Days',
         },
       ];

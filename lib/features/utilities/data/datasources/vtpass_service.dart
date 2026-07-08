@@ -57,6 +57,8 @@ class VtPassService {
       return cleanProvider; // mtn, airtel, glo
     } else if (serviceType == 'Data') {
       if (cleanProvider == '9mobile') return 'etisalat-data';
+      if (cleanProvider == 'smile') return 'smile-direct';
+      if (cleanProvider == 'spectranet') return 'spectranet';
       return '$cleanProvider-data'; // mtn-data, airtel-data, glo-data
     } else if (serviceType == 'Electricity') {
       return provider; // e.g. "ikeja-electric", "eko-electric", "abuja-electric", etc.
