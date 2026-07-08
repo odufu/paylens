@@ -136,6 +136,32 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           },
         ];
       }
+      if (provider == 'glo') {
+        return [
+          {
+            'id': 'glo-sme-1',
+            'name': 'Glo 1GB SME',
+            'amount': 320.0,
+            'variation': 'glo-dg-320',
+            'duration': '30 Days',
+          },
+          {
+            'id': 'glo-sme-2',
+            'name': 'Glo 2GB SME',
+            'amount': 640.0,
+            'variation': 'glo-dg-640',
+            'duration': '30 Days',
+          },
+          {
+            'id': 'glo-sme-5',
+            'name': 'Glo 5GB SME',
+            'amount': 1600.0,
+            'variation': 'glo-dg-1600',
+            'duration': '30 Days',
+          },
+        ];
+      }
+
       return [
         {
           'id': '${provider}-sme-1',
