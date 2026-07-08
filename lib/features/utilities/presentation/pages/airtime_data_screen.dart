@@ -279,33 +279,100 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       ];
     }
 
+    if (provider == 'airtel') {
+      return [
+        {
+          'id': 'airt-m-1.5',
+          'name': 'Airtel 1.5GB Monthly',
+          'amount': 1000.0,
+          'variation': 'airt-1000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'airt-m-3',
+          'name': 'Airtel 3GB Monthly',
+          'amount': 1500.0,
+          'variation': 'airt-1500',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'airt-m-8',
+          'name': 'Airtel 8GB Monthly',
+          'amount': 3000.0,
+          'variation': 'airt-3000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'airt-m-11',
+          'name': 'Airtel 11GB Monthly',
+          'amount': 4000.0,
+          'variation': 'airt-4000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'airt-m-15',
+          'name': 'Airtel 15GB Monthly',
+          'amount': 5000.0,
+          'variation': 'airt-5000',
+          'duration': '30 Days',
+        },
+      ];
+    }
+
+    if (provider == 'glo') {
+      return [
+        {
+          'id': 'glo-m-2.5',
+          'name': 'Glo 2.5GB Monthly',
+          'amount': 1000.0,
+          'variation': 'glo1000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'glo-m-5.8',
+          'name': 'Glo 5.8GB Monthly',
+          'amount': 2000.0,
+          'variation': 'glo2000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'glo-m-10',
+          'name': 'Glo 10GB Monthly',
+          'amount': 3000.0,
+          'variation': 'glo3000',
+          'duration': '30 Days',
+        },
+        {
+          'id': 'glo-m-18.25',
+          'name': 'Glo 18.25GB Monthly',
+          'amount': 5000.0,
+          'variation': 'glo5000',
+          'duration': '30 Days',
+        },
+      ];
+    }
+
+    // 9mobile / etisalat
     return [
       {
-        'id': '${provider}-m-1.5',
-        'name': '$_selectedProvider 1.5GB Monthly',
+        'id': 'eti-m-1.5',
+        'name': '9mobile 1.5GB Monthly',
         'amount': 1000.0,
-        'variation': '${provider}-1-5gb',
+        'variation': 'eti-1000',
         'duration': '30 Days',
       },
       {
-        'id': '${provider}-m-3',
-        'name': '$_selectedProvider 3GB Monthly',
-        'amount': 1500.0,
-        'variation': '${provider}-3gb',
+        'id': 'eti-m-4.5',
+        'name': '9mobile 4.5GB Monthly',
+        'amount': 2000.0,
+        'variation': 'eti-2000',
         'duration': '30 Days',
       },
       {
-        'id': '${provider}-m-10',
-        'name': '$_selectedProvider 10GB Monthly',
-        'amount': 3000.0,
-        'variation': '${provider}-10gb',
-        'duration': '30 Days',
-      },
-      {
-        'id': '${provider}-m-20',
-        'name': '$_selectedProvider 20GB Monthly',
+        'id': 'eti-m-15',
+        'name': '9mobile 15GB Monthly',
         'amount': 5000.0,
-        'variation': '${provider}-20gb',
+        'variation': 'eti-5000',
         'duration': '30 Days',
       },
     ];
