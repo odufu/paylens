@@ -342,6 +342,38 @@ class VtPassService {
     }
   }
 
+  /// Fetches live service variations from VTPass
+  static Future<List<Map<String, dynamic>>?> fetchVariations(String provider, String serviceType) async {
+    try {
+      final serviceID = _mapProviderToServiceId(provider, serviceType);
+      
+      final response = await sl<SupabaseClient>().functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'service-variations?serviceID=$serviceID',
+          'method': 'GET',
+        },
+      );
+
+      if (response.status == 200) {
+        final Map<String, dynamic> data = response.data as Map<String, dynamic>;
+        final code = data['code'];
+        if (code == '000') {
+          final content = data['content'] ?? {};
+          final List<dynamic> variations = content['variations'] ?? content['varations'] ?? [];
+          return variations.map<Map<String, dynamic>>((v) => {
+            'variation_code': v['variation_code'].toString(),
+            'name': v['name'].toString(),
+            'variation_amount': double.tryParse(v['variation_amount'].toString()) ?? 0.0,
+          }).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('VTPass Fetch Variations Exception: $e');
+    }
+    return null;
+  }
+
   /// Fetches the current VTPass Vending Wallet Balance (Admin only)
   static Future<double?> fetchBalance() async {
     try {

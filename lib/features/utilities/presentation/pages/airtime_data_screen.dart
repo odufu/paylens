@@ -38,6 +38,8 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   bool _isProcessing = false;
   List<String> _recentNumbers = [];
   String _selectedCategory = 'Monthly';
+  bool _isLoadingLiveVariations = false;
+  List<Map<String, dynamic>>? _liveVariations;
 
   final List<String> _categories = [
     'Monthly',
@@ -81,6 +83,59 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 
   List<Map<String, dynamic>> _getFilteredPackages() {
     final provider = _selectedProvider.toLowerCase();
+
+    if (_liveVariations != null && _liveVariations!.isNotEmpty) {
+      final List<Map<String, dynamic>> filtered = [];
+      for (final v in _liveVariations!) {
+        final name = v['name'].toString().toLowerCase();
+        final amount = v['variation_amount'] as double;
+        final code = v['variation_code'].toString();
+
+        bool match = false;
+        if (_selectedCategory == 'SME Data') {
+          match = name.contains('sme') || name.contains('share');
+        } else if (_selectedCategory == 'Daily/Weekly') {
+          match = name.contains('day') ||
+              name.contains('hr') ||
+              name.contains('daily') ||
+              name.contains('weekly') ||
+              name.contains('night') ||
+              name.contains('weekend') ||
+              name.contains('24h') ||
+              name.contains('7 days') ||
+              name.contains('2 days');
+        } else if (_selectedCategory == 'Corporate Gifting') {
+          match = name.contains('cg') || name.contains('corporate') || name.contains('gifting');
+        } else {
+          // Monthly
+          final isSme = name.contains('sme') || name.contains('share');
+          final isShort = name.contains('day') ||
+              name.contains('hr') ||
+              name.contains('daily') ||
+              name.contains('weekly') ||
+              name.contains('night') ||
+              name.contains('weekend') ||
+              name.contains('24h') ||
+              name.contains('7 days') ||
+              name.contains('2 days');
+          final isCG = name.contains('cg') || name.contains('corporate') || name.contains('gifting');
+          match = !isSme && !isShort && !isCG;
+        }
+
+        if (match) {
+          filtered.add({
+            'id': '${provider}-${code}',
+            'name': v['name'],
+            'amount': amount,
+            'variation': code,
+            'duration': _selectedCategory == 'Daily/Weekly' ? 'Short Term' : '30 Days',
+          });
+        }
+      }
+      if (filtered.isNotEmpty) {
+        return filtered;
+      }
+    }
 
     if (_selectedCategory == 'SME Data') {
       if (provider == 'mtn') {
@@ -560,6 +615,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       } else {
         _selectedDataPackage = packages.first;
       }
+      _fetchLiveVariations();
     }
     _phoneController.addListener(_onPhoneChanged);
     _loadRecentNumbers();
@@ -571,6 +627,30 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     _phoneController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchLiveVariations() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingLiveVariations = true;
+      _liveVariations = null;
+    });
+
+    final provider = _selectedProvider;
+    final variations = await VtPassService.fetchVariations(provider, 'Data');
+    
+    if (mounted && _selectedProvider == provider) {
+      setState(() {
+        _isLoadingLiveVariations = false;
+        if (variations != null && variations.isNotEmpty) {
+          _liveVariations = variations;
+          final packages = _getFilteredPackages();
+          if (packages.isNotEmpty) {
+            _selectedDataPackage = packages.first;
+          }
+        }
+      });
+    }
   }
 
   void _onPhoneChanged() {
@@ -586,7 +666,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
         setState(() {
           _selectedProvider = detectedProvider;
           if (_isDataTab) {
-            _selectedDataPackage = _getFilteredPackages().first;
+            _fetchLiveVariations();
           }
         });
       }
@@ -821,10 +901,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                         onTap: () {
                           setState(() {
                             _isDataTab = true;
-                            if (_selectedDataPackage == null) {
-                              _selectedDataPackage =
-                                  _getFilteredPackages().first;
-                            }
+                            _fetchLiveVariations();
                           });
                         },
                         child: Container(
@@ -878,8 +955,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                             setState(() {
                               _selectedProvider = p['name'];
                               if (_isDataTab) {
-                                _selectedDataPackage =
-                                    _getFilteredPackages().first;
+                                _fetchLiveVariations();
                               }
                             });
                           },
@@ -970,6 +1046,9 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                   setState(() {
                                     _phoneController.text = phone;
                                     _selectedProvider = provider;
+                                    if (_isDataTab) {
+                                      _fetchLiveVariations();
+                                    }
                                   });
                                 },
                               ),
@@ -1097,12 +1176,48 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                       const SizedBox(height: 24),
 
                       // Data Package Grid / List
-                      Text(
-                        'Select Data Plan',
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Select Data Plan',
+                            style: textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (_isLoadingLiveVariations)
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryForest),
+                              ),
+                            )
+                          else if (_liveVariations != null)
+                            Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Live Rates',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       ListView.builder(
