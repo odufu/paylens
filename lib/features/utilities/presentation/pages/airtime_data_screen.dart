@@ -233,6 +233,72 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           },
         ];
       }
+      if (provider == 'airtel') {
+        return [
+          {
+            'id': 'airt-d-600',
+            'name': 'Airtel 1GB (14 Days)',
+            'amount': 600.0,
+            'variation': 'airt-600',
+            'duration': '14 Days',
+          },
+          {
+            'id': 'airt-w-1.5',
+            'name': 'Airtel 1.5GB (7 Days)',
+            'amount': 1000.0,
+            'variation': 'airt-1000-7',
+            'duration': '7 Days',
+          },
+          {
+            'id': 'airt-w-3.5',
+            'name': 'Airtel 3.5GB (2 Days)',
+            'amount': 800.0,
+            'variation': 'airt-800-2',
+            'duration': '2 Days',
+          },
+          {
+            'id': 'airt-w-7',
+            'name': 'Airtel 7GB (7 Days)',
+            'amount': 2000.0,
+            'variation': 'airt-2000-7',
+            'duration': '7 Days',
+          },
+        ];
+      }
+
+      if (provider == 'glo') {
+        return [
+          {
+            'id': 'glo-d-100',
+            'name': 'Glo 115MB (1 Day)',
+            'amount': 100.0,
+            'variation': 'glo-daily-100',
+            'duration': '1 Day',
+          },
+          {
+            'id': 'glo-d-200',
+            'name': 'Glo 240MB (2 Days)',
+            'amount': 200.0,
+            'variation': 'glo-2days-200',
+            'duration': '2 Days',
+          },
+          {
+            'id': 'glo-w-500',
+            'name': 'Glo 800MB (14 Days)',
+            'amount': 500.0,
+            'variation': 'glo-2weeks-500',
+            'duration': '14 Days',
+          },
+          {
+            'id': 'glo-w-2gb',
+            'name': 'Glo 2GB Special (7 Days)',
+            'amount': 500.0,
+            'variation': 'glo-special-500',
+            'duration': '7 Days',
+          },
+        ];
+      }
+
       if (provider == 'smile') {
         return [
           {
