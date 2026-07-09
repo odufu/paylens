@@ -38,12 +38,18 @@ class VtPassPurchaseResult {
   final String? transactionId;
   final String? token;
   final String? error;
+  final String? responseCode;
+  final String? status;
+  final bool isPending;
 
   VtPassPurchaseResult({
     required this.success,
     this.transactionId,
     this.token,
     this.error,
+    this.responseCode,
+    this.status,
+    this.isPending = false,
   });
 }
 
@@ -309,36 +315,133 @@ class VtPassService {
 
       if (response.status == 200) {
         final Map<String, dynamic> data = response.data as Map<String, dynamic>;
-        final code = data['code'];
+        final code = data['code']?.toString();
         
         if (code == '000') {
           final content = data['content'] ?? {};
           final transaction = content['transactions'] ?? {};
+          final status = transaction['status']?.toString().toLowerCase();
           final token = content['token'] ?? transaction['token'];
           
-          return VtPassPurchaseResult(
-            success: true,
-            transactionId: transaction['transactionId']?.toString() ?? 'VTP-${DateTime.now().millisecondsSinceEpoch}',
-            token: token,
-          );
-        } else {
+          if (status == 'delivered' || status == 'success') {
+            return VtPassPurchaseResult(
+              success: true,
+              transactionId: transaction['transactionId']?.toString() ?? 'VTP-${DateTime.now().millisecondsSinceEpoch}',
+              token: token,
+              responseCode: code,
+              status: status,
+              isPending: false,
+            );
+          } else if (status == 'pending' || status == 'processing') {
+            return VtPassPurchaseResult(
+              success: false,
+              responseCode: code,
+              status: 'pending',
+              isPending: true,
+              error: 'Transaction is pending on provider network.',
+            );
+          } else {
+            return VtPassPurchaseResult(
+              success: false,
+              responseCode: code,
+              status: status ?? 'failed',
+              isPending: false,
+              error: data['response_description'] ?? 'Transaction was declined by provider.',
+            );
+          }
+        } else if (code == '099') {
           return VtPassPurchaseResult(
             success: false,
-            error: data['response_description'] ?? 'Transaction failed. Check wallet balance and try again.',
+            responseCode: code,
+            status: 'pending',
+            isPending: true,
+            error: 'Transaction is processing on provider network.',
+          );
+        } else {
+          final mappedError = _mapResponseCodeToMessage(code, data['response_description']);
+          return VtPassPurchaseResult(
+            success: false,
+            responseCode: code,
+            status: 'failed',
+            isPending: false,
+            error: mappedError,
           );
         }
       } else {
+        // Unexpected HTTP status -> treat as pending/timeout to avoid loss of funds!
         return VtPassPurchaseResult(
           success: false,
-          error: 'HTTP error ${response.status} returned from payment server.',
+          responseCode: 'HTTP_${response.status}',
+          status: 'pending',
+          isPending: true,
+          error: 'Connection timeout or invalid server response. Initiating status check.',
         );
       }
     } catch (e) {
       debugPrint('VTPass Purchase Exception: $e');
       return VtPassPurchaseResult(
         success: false,
-        error: 'Network connection error during utility purchase checkout: $e',
+        responseCode: 'TIMEOUT_EXCEPTION',
+        status: 'pending',
+        isPending: true,
+        error: 'Network connection timeout during utility checkout: $e',
       );
+    }
+  }
+
+  /// Maps VTPass response codes to helpful diagnostic messages for customer support and auditing
+  static String _mapResponseCodeToMessage(String? code, String? description) {
+    if (description != null && description.isNotEmpty) {
+      return '$description (Code: $code)';
+    }
+    
+    switch (code) {
+      case '011':
+        return 'Invalid input details or missing required arguments. (Code: 011)';
+      case '012':
+        return 'Product variation not found. (Code: 012)';
+      case '013':
+        return 'Biller verification failed. (Code: 013)';
+      case '014':
+        return 'Invalid Request ID format. (Code: 014)';
+      case '015':
+        return 'Duplicate transaction Request ID. (Code: 015)';
+      case '016':
+        return 'API authentication failure. (Code: 016)';
+      case '017':
+        return 'Insufficient balance on vending gateway wallet. (Code: 017)';
+      case '018':
+        return 'Service provider is currently unavailable. (Code: 018)';
+      case '019':
+        return 'Transaction quantity/amount limit exceeded. (Code: 019)';
+      case '020':
+        return 'Invalid service ID specified. (Code: 020)';
+      case '021':
+        return 'Biller account validation failed. (Code: 021)';
+      case '022':
+        return 'VTPass internal gateway error. (Code: 022)';
+      case '023':
+        return 'This product option is temporarily suspended. (Code: 023)';
+      case '024':
+        return 'Payment method not supported. (Code: 024)';
+      case '025':
+        return 'Smartcard/meter verification is required first. (Code: 025)';
+      case '030':
+        return 'Duplicate transaction detected. (Code: 030)';
+      case '034':
+        return 'Transaction daily limit exceeded. (Code: 034)';
+      case '035':
+        return 'Service query timed out. (Code: 035)';
+      case '040':
+        return 'Transaction reversed by provider. (Code: 040)';
+      case '083':
+        return 'VTPass system under maintenance. (Code: 083)';
+      case '084':
+        return 'Network provider undergoing maintenance. (Code: 084)';
+      case '085':
+        return 'VTPass configuration mismatch error. (Code: 085)';
+      default:
+        return 'Transaction failed. Code: $code';
     }
   }
 

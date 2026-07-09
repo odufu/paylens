@@ -833,14 +833,14 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     );
 
     if (mounted) {
-      if (purchaseResult.success) {
-        final String serviceTitle = _isDataTab
-            ? '$_selectedProvider Data Purchase'
-            : '$_selectedProvider Airtime';
-        final String serviceDetail = _isDataTab
-            ? '${_selectedDataPackage!['name']} for ${_phoneController.text}'
-            : 'Top-up for ${_phoneController.text}';
+      final String serviceTitle = _isDataTab
+          ? '$_selectedProvider Data Purchase'
+          : '$_selectedProvider Airtime';
+      final String serviceDetail = _isDataTab
+          ? '${_selectedDataPackage!['name']} for ${_phoneController.text}'
+          : 'Top-up for ${_phoneController.text}';
 
+      if (purchaseResult.success) {
         final bool success = await walletProvider.payBill(
           amount: amount,
           serviceName: serviceTitle,
@@ -867,15 +867,31 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
             );
           }
         }
+      } else if (purchaseResult.isPending) {
+        final ticketId = await walletProvider.logPendingTransaction(
+          amount: amount,
+          serviceName: serviceTitle,
+          billDetails: serviceDetail,
+          category: TransactionCategory.bills,
+          errorReason: purchaseResult.error ?? 'Transaction is pending network operator confirmation.',
+        );
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isProcessing = false;
+          });
+
+          PendingDialog.show(
+            context,
+            title: 'Transaction Pending',
+            message: 'Your payment is being processed by the operator. Please do not retry to avoid duplicate debit. You can check status in transaction history.',
+            ticketId: ticketId ?? '#TKT-UNKNOWN',
+          );
+        }
       } else {
         final errorMsg =
             purchaseResult.error ?? 'Transaction failed. Please try again.';
-        final String serviceTitle = _isDataTab
-            ? '$_selectedProvider Data Purchase'
-            : '$_selectedProvider Airtime';
-        final String serviceDetail = _isDataTab
-            ? '${_selectedDataPackage!['name']} for ${_phoneController.text}'
-            : 'Top-up for ${_phoneController.text}';
 
         final ticketId = await walletProvider.logFailedTransaction(
           amount: amount,

@@ -689,6 +689,77 @@ class WalletProvider extends ChangeNotifier {
     return ticketId;
   }
 
+  /// Logs a pending transaction (deducts balance and creates ticket)
+  Future<String?> logPendingTransaction({
+    required double amount,
+    required String serviceName,
+    required String billDetails,
+    required TransactionCategory category,
+    required String errorReason,
+  }) async {
+    if (_balance < amount) return null;
+    final uid = _userId;
+    final txId = _uuid.v4();
+    final reference = 'VTP-PEND-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final ticketId = '#TKT-${(10000 + (_uuid.v4().hashCode % 90000)).abs()}';
+
+    if (uid != null) {
+      try {
+        // 1. Deduct balance in profile
+        await SupabaseService.client
+            .from('profiles')
+            .update({'wallet_balance': _balance - amount})
+            .eq('id', uid);
+
+        // 2. Insert pending transaction record
+        await SupabaseService.client.from('transactions').insert({
+          'id': txId,
+          'profile_id': uid,
+          'title': serviceName,
+          'subtitle': '$billDetails (Pending: $errorReason)',
+          'amount': -amount,
+          'category': category.name,
+          'status': 'pending',
+          'reference': reference,
+          'provider': 'VTPass',
+        });
+
+        // 3. Insert Support Ticket referencing the pending transaction
+        await SupabaseService.client.from('support_tickets').insert({
+          'id': ticketId,
+          'profile_id': uid,
+          'transaction_id': txId,
+          'title': 'Pending $serviceName',
+          'description': 'Automated Ticket: Attempted to pay ₦$amount for $billDetails. API returned pending status. Requery required.',
+          'status': 'pending',
+        });
+
+        await _syncWithSupabase();
+        return ticketId;
+      } catch (e) {
+        debugPrint('Failed to log pending transaction in Supabase: $e');
+      }
+    }
+
+    // Local Fallback
+    _balance -= amount;
+    final tx = TransactionModel(
+      id: txId,
+      title: serviceName,
+      subtitle: '$billDetails (Pending: $errorReason)',
+      amount: -amount,
+      date: DateTime.now(),
+      category: category,
+      status: TransactionStatus.pending,
+      reference: reference,
+      provider: 'VTPass',
+    );
+    _transactions.insert(0, tx);
+    await _saveLocalState();
+    notifyListeners();
+    return ticketId;
+  }
+
   // --- LOCAL FALLBACK STATE PERSISTENCE ---
 
   Future<void> _loadLocalState() async {

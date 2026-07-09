@@ -430,3 +430,90 @@ class FailureDialog extends StatelessWidget {
     );
   }
 }
+
+class PendingDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String ticketId;
+
+  const PendingDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.ticketId,
+  });
+
+  static void show(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String ticketId,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PendingDialog(
+        title: title,
+        message: message,
+        ticketId: ticketId,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF161E1A) : Colors.white;
+    final titleColor = isDark ? Colors.white : AppColors.textDark;
+    
+    return AlertDialog(
+      backgroundColor: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      icon: const Icon(
+        Icons.hourglass_empty_rounded,
+        color: Colors.amber,
+        size: 48,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(fontWeight: FontWeight.bold, color: titleColor),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.black87,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.withOpacity(0.2)),
+            ),
+            child: Text(
+              'Audit Ticket: $ticketId',
+              style: const TextStyle(
+                color: Colors.amber,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryForest)),
+        ),
+      ],
+    );
+  }
+}
