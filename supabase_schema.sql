@@ -302,17 +302,17 @@ CREATE POLICY "Admins can manage vending routes" ON public.vending_routes
         )
     );
 
--- Seed default VTPass routes
+-- Seed default routes (Hybrid Routing: Airtime, Smile/Spectranet -> VTPass; Mobile Data -> ClubKonnect)
 INSERT INTO public.vending_routes (service_type, network_provider, active_gateway, commission_rate)
 VALUES 
   ('Airtime', 'MTN', 'VTPass', 0.0200),
   ('Airtime', 'Airtel', 'VTPass', 0.0200),
   ('Airtime', 'Glo', 'VTPass', 0.0400),
   ('Airtime', '9mobile', 'VTPass', 0.0300),
-  ('Data', 'MTN', 'VTPass', 0.0180),
-  ('Data', 'Airtel', 'VTPass', 0.0180),
-  ('Data', 'Glo', 'VTPass', 0.0350),
-  ('Data', '9mobile', 'VTPass', 0.0300),
+  ('Data', 'MTN', 'ClubKonnect', 0.1600),       -- 16% margin target for MTN SME
+  ('Data', 'Airtel', 'ClubKonnect', 0.1200),    -- 12% margin target for Airtel CG
+  ('Data', 'Glo', 'ClubKonnect', 0.1500),       -- 15% margin target for Glo Gifting
+  ('Data', '9mobile', 'ClubKonnect', 0.1800),   -- 18% margin target for 9mobile SME
   ('Data', 'Smile', 'VTPass', 0.0100),
   ('Data', 'Spectranet', 'VTPass', 0.0100)
 ON CONFLICT DO NOTHING;
