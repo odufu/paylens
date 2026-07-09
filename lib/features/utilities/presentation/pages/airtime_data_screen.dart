@@ -338,6 +338,38 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           },
         ];
       }
+      if (provider == '9mobile') {
+        return [
+          {
+            'id': 'eti-d-100',
+            'name': '9mobile 100MB (1 Day)',
+            'amount': 100.0,
+            'variation': 'eti-100',
+            'duration': '1 Day',
+          },
+          {
+            'id': 'eti-d-200',
+            'name': '9mobile 650MB (1 Day)',
+            'amount': 200.0,
+            'variation': 'eti-200',
+            'duration': '1 Day',
+          },
+          {
+            'id': 'eti-d-300',
+            'name': '9mobile 1.1GB (1 Day)',
+            'amount': 300.0,
+            'variation': 'eti-300',
+            'duration': '1 Day',
+          },
+          {
+            'id': 'eti-w-1500',
+            'name': '9mobile 7GB (7 Days)',
+            'amount': 1500.0,
+            'variation': 'eti-1500-7',
+            'duration': '7 Days',
+          },
+        ];
+      }
       return [
         {
           'id': '${provider}-d-100',
