@@ -158,67 +158,28 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       if (provider == 'mtn') {
         return [
           {
-            'id': 'mtn-sme-1',
-            'name': 'MTN 1GB SME (30 Days)',
-            'amount': 250.0,
-            'variation': 'mtn-sme-1gb',
-            'duration': '30 Days',
-          },
-          {
-            'id': 'mtn-sme-2',
-            'name': 'MTN 2GB SME (30 Days)',
-            'amount': 500.0,
-            'variation': 'mtn-sme-2gb',
-            'duration': '30 Days',
-          },
-          {
-            'id': 'mtn-sme-5',
-            'name': 'MTN 5GB SME (30 Days)',
-            'amount': 1250.0,
-            'variation': 'mtn-sme-5gb',
-            'duration': '30 Days',
-          },
-          {
-            'id': 'mtn-sme-10',
-            'name': 'MTN 10GB SME (30 Days)',
-            'amount': 2500.0,
-            'variation': 'mtn-sme-10gb',
-            'duration': '30 Days',
-          },
-          {
             'id': 'mtn-sme-25',
             'name': 'MTN 25GB SME (30 Days)',
             'amount': 10000.0,
             'variation': 'mtn-25gb-sme-10000',
             'duration': '30 Days',
           },
-        ];
-      } else if (provider == 'airtel') {
-        return [
           {
-            'id': 'art-sme-1',
-            'name': 'Airtel 1GB SME (30 Days)',
-            'amount': 260.0,
-            'variation': 'airtel-sme-1gb',
-            'duration': '30 Days',
+            'id': 'mtn-sme-165',
+            'name': 'MTN 165GB SME (2 Months)',
+            'amount': 50000.0,
+            'variation': 'mtn-165gb-sme-50000',
+            'duration': '60 Days',
           },
           {
-            'id': 'art-sme-2',
-            'name': 'Airtel 2GB SME (30 Days)',
-            'amount': 520.0,
-            'variation': 'airtel-sme-2gb',
-            'duration': '30 Days',
-          },
-          {
-            'id': 'art-sme-5',
-            'name': 'Airtel 5GB SME (30 Days)',
-            'amount': 1300.0,
-            'variation': 'airtel-sme-5gb',
-            'duration': '30 Days',
+            'id': 'mtn-sme-360',
+            'name': 'MTN 360GB SME (3 Months)',
+            'amount': 100000.0,
+            'variation': 'mtn-360gb-sme-100000',
+            'duration': '90 Days',
           },
         ];
-      }
-      if (provider == 'glo') {
+      } else if (provider == 'glo') {
         return [
           {
             'id': 'glo-sme-1',
@@ -243,23 +204,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           },
         ];
       }
-
-      return [
-        {
-          'id': '${provider}-sme-1',
-          'name': '$_selectedProvider 1GB SME',
-          'amount': 280.0,
-          'variation': '${provider}-sme-1gb',
-          'duration': '30 Days',
-        },
-        {
-          'id': '${provider}-sme-2',
-          'name': '$_selectedProvider 2GB SME',
-          'amount': 560.0,
-          'variation': '${provider}-sme-2gb',
-          'duration': '30 Days',
-        },
-      ];
+      return [];
     }
 
     if (_selectedCategory == 'Daily/Weekly') {
@@ -963,55 +908,63 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: _providers.map((p) {
-                        final bool isSelected = _selectedProvider == p['name'];
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedProvider = p['name'];
-                              if (_isDataTab) {
-                                _fetchLiveVariations();
-                              }
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 76,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: p['color'],
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSelected
-                                  ? Border.all(
-                                      color: AppColors.primaryForest,
-                                      width: 3,
-                                    )
-                                  : Border.all(color: Colors.transparent),
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.15),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Center(
-                              child: Text(
-                                p['name'],
-                                style: TextStyle(
-                                  color: p['textColor'],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                    SizedBox(
+                      height: 64,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _providers.length,
+                        itemBuilder: (context, index) {
+                          final p = _providers[index];
+                          final bool isSelected = _selectedProvider == p['name'];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedProvider = p['name'];
+                                  if (_isDataTab) {
+                                    _fetchLiveVariations();
+                                  }
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 85,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: p['color'],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: isSelected
+                                      ? Border.all(
+                                          color: AppColors.primaryForest,
+                                          width: 3,
+                                        )
+                                      : Border.all(color: Colors.transparent),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.15),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    p['name'],
+                                    style: TextStyle(
+                                      color: p['textColor'],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        },
+                      ),
                     ),
                     if (_recentNumbers.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -1237,95 +1190,138 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _getFilteredPackages().length,
-                        itemBuilder: (context, index) {
-                          final pack = _getFilteredPackages()[index];
-                          final bool isDark =
-                              Theme.of(context).brightness == Brightness.dark;
-                          final bool isSelected =
-                              _selectedDataPackage?['id'] == pack['id'];
+                      if (_getFilteredPackages().isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white10
+                                  : Colors.grey.shade200,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  LucideIcons.wifiOff,
+                                  size: 40,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No Packages Available',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'There are no packages in this category for $_selectedProvider.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _getFilteredPackages().length,
+                          itemBuilder: (context, index) {
+                            final pack = _getFilteredPackages()[index];
+                            final bool isDark =
+                                Theme.of(context).brightness == Brightness.dark;
+                            final bool isSelected =
+                                _selectedDataPackage?['id'] == pack['id'];
 
-                          final itemBgColor = isSelected
-                              ? (isDark
-                                    ? AppColors.accentLime.withOpacity(0.08)
-                                    : AppColors.primaryForest.withOpacity(0.06))
-                              : Theme.of(context).cardColor;
+                            final itemBgColor = isSelected
+                                ? (isDark
+                                      ? AppColors.accentLime.withOpacity(0.08)
+                                      : AppColors.primaryForest.withOpacity(0.06))
+                                : Theme.of(context).cardColor;
 
-                          final itemBorderColor = isSelected
-                              ? (isDark
-                                    ? AppColors.accentLime
-                                    : AppColors.primaryForest)
-                              : (isDark
-                                    ? Colors.white10
-                                    : Colors.grey.shade300);
+                            final itemBorderColor = isSelected
+                                ? (isDark
+                                      ? AppColors.accentLime
+                                      : AppColors.primaryForest)
+                                : (isDark
+                                      ? Colors.white10
+                                      : Colors.grey.shade300);
 
-                          final itemTextColor = isSelected
-                              ? (isDark
-                                    ? AppColors.accentLime
-                                    : AppColors.primaryForest)
-                              : (isDark
-                                    ? const Color(0xFFF0F4F2)
-                                    : AppColors.textDark);
+                            final itemTextColor = isSelected
+                                ? (isDark
+                                      ? AppColors.accentLime
+                                      : AppColors.primaryForest)
+                                : (isDark
+                                      ? const Color(0xFFF0F4F2)
+                                      : AppColors.textDark);
 
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedDataPackage = pack;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: itemBgColor,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: itemBorderColor,
-                                  width: isSelected ? 1.5 : 1,
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedDataPackage = pack;
+                                });
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: itemBgColor,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: itemBorderColor,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          pack['name'],
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: itemTextColor,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          pack['duration'] ?? '30 Days',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textGrey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.format(pack['amount']),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: itemTextColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        pack['name'],
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: itemTextColor,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        pack['duration'] ?? '30 Days',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textGrey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    CurrencyFormatter.format(pack['amount']),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: itemTextColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        ),
                     ],
 
                     const SizedBox(height: 32),
