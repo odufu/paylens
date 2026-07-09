@@ -272,3 +272,47 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 7. Create Vending Routes Table for Dynamic Provider Switching
+CREATE TABLE IF NOT EXISTS public.vending_routes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_type TEXT NOT NULL,       -- 'Airtime', 'Data', 'Cable TV', 'Electricity'
+    network_provider TEXT NOT NULL,   -- 'MTN', 'Airtel', 'Glo', '9mobile', 'Smile', 'Spectranet'
+    active_gateway TEXT NOT NULL,     -- 'VTPass', 'ClubKonnect', 'MobiLilla'
+    commission_rate NUMERIC(5,4) NOT NULL DEFAULT 0.0200,   -- e.g. 0.0200 = 2% discount
+    is_active BOOLEAN DEFAULT true NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.vending_routes ENABLE ROW LEVEL SECURITY;
+
+-- Allow read access for authenticated users, full access for admins only
+DROP POLICY IF EXISTS "Allow authenticated read on vending routes" ON public.vending_routes;
+CREATE POLICY "Allow authenticated read on vending routes" ON public.vending_routes
+    FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage vending routes" ON public.vending_routes;
+CREATE POLICY "Admins can manage vending routes" ON public.vending_routes
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() 
+            AND (email LIKE '%admin%' OR email LIKE '%@paylenses.com')
+        )
+    );
+
+-- Seed default VTPass routes
+INSERT INTO public.vending_routes (service_type, network_provider, active_gateway, commission_rate)
+VALUES 
+  ('Airtime', 'MTN', 'VTPass', 0.0200),
+  ('Airtime', 'Airtel', 'VTPass', 0.0200),
+  ('Airtime', 'Glo', 'VTPass', 0.0400),
+  ('Airtime', '9mobile', 'VTPass', 0.0300),
+  ('Data', 'MTN', 'VTPass', 0.0180),
+  ('Data', 'Airtel', 'VTPass', 0.0180),
+  ('Data', 'Glo', 'VTPass', 0.0350),
+  ('Data', '9mobile', 'VTPass', 0.0300),
+  ('Data', 'Smile', 'VTPass', 0.0100),
+  ('Data', 'Spectranet', 'VTPass', 0.0100)
+ON CONFLICT DO NOTHING;
