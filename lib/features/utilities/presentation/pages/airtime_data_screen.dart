@@ -81,48 +81,65 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     },
   ];
 
+  String _categorizePlan(String name) {
+    final clean = name.toLowerCase();
+    
+    // 1. SME Data
+    if (clean.contains('sme') || clean.contains('share') || clean.contains('dg-')) {
+      return 'SME Data';
+    }
+    
+    // 2. Corporate Gifting
+    if (clean.contains('cg') || clean.contains('corporate') || clean.contains('gifting')) {
+      return 'Corporate Gifting';
+    }
+    
+    // 3. Monthly (check monthly keywords first, e.g. "30 days" contains "days")
+    if (clean.contains('month') ||
+        clean.contains('30 days') ||
+        clean.contains('30days') ||
+        clean.contains('30 day') ||
+        clean.contains('30day') ||
+        clean.contains('30-day') ||
+        clean.contains('bigga') ||
+        clean.contains('anytime')) {
+      return 'Monthly';
+    }
+    
+    // 4. Daily / Weekly / Short Term
+    if (clean.contains('day') ||
+        clean.contains('hr') ||
+        clean.contains('daily') ||
+        clean.contains('weekly') ||
+        clean.contains('night') ||
+        clean.contains('weekend') ||
+        clean.contains('24h') ||
+        clean.contains('7 days') ||
+        clean.contains('2 days') ||
+        clean.contains('3 days') ||
+        clean.contains('5 days') ||
+        clean.contains('14 days') ||
+        clean.contains('binge')) {
+      return 'Daily/Weekly';
+    }
+    
+    // 5. Monthly Default fallback
+    return 'Monthly';
+  }
+
   List<Map<String, dynamic>> _getFilteredPackages() {
     final provider = _selectedProvider.toLowerCase();
 
     if (_liveVariations != null && _liveVariations!.isNotEmpty) {
       final List<Map<String, dynamic>> filtered = [];
       for (final v in _liveVariations!) {
-        final name = v['name'].toString().toLowerCase();
+        final name = v['name'].toString();
         final amount = v['variation_amount'] as double;
         final code = v['variation_code'].toString();
 
-        bool match = false;
-        if (_selectedCategory == 'SME Data') {
-          match = name.contains('sme') || name.contains('share');
-        } else if (_selectedCategory == 'Daily/Weekly') {
-          match = name.contains('day') ||
-              name.contains('hr') ||
-              name.contains('daily') ||
-              name.contains('weekly') ||
-              name.contains('night') ||
-              name.contains('weekend') ||
-              name.contains('24h') ||
-              name.contains('7 days') ||
-              name.contains('2 days');
-        } else if (_selectedCategory == 'Corporate Gifting') {
-          match = name.contains('cg') || name.contains('corporate') || name.contains('gifting');
-        } else {
-          // Monthly
-          final isSme = name.contains('sme') || name.contains('share');
-          final isShort = name.contains('day') ||
-              name.contains('hr') ||
-              name.contains('daily') ||
-              name.contains('weekly') ||
-              name.contains('night') ||
-              name.contains('weekend') ||
-              name.contains('24h') ||
-              name.contains('7 days') ||
-              name.contains('2 days');
-          final isCG = name.contains('cg') || name.contains('corporate') || name.contains('gifting');
-          match = !isSme && !isShort && !isCG;
-        }
-
-        if (match) {
+        final category = _categorizePlan(name);
+        
+        if (category == _selectedCategory) {
           filtered.add({
             'id': '${provider}-${code}',
             'name': v['name'],
