@@ -532,10 +532,11 @@ class WalletProvider extends ChangeNotifier {
     required String serviceName,
     required String billDetails,
     required TransactionCategory category,
+    String gateway = 'ClubKonnect',
   }) async {
     if (_balance < amount) return false;
     final uid = _userId;
-    final reference = 'VTP-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final reference = '${gateway == 'ClubKonnect' ? 'CK' : 'VTP'}-${_uuid.v4().substring(0, 8).toUpperCase()}';
 
     if (uid != null) {
       try {
@@ -554,7 +555,7 @@ class WalletProvider extends ChangeNotifier {
           'category': category.name,
           'status': 'success',
           'reference': reference,
-          'provider': 'VTPass',
+          'provider': gateway,
         }).select('id').maybeSingle();
 
         if (insertRes != null && insertRes['id'] != null) {
@@ -633,10 +634,11 @@ class WalletProvider extends ChangeNotifier {
     required String billDetails,
     required TransactionCategory category,
     required String errorReason,
+    String gateway = 'ClubKonnect',
   }) async {
     final uid = _userId;
     final txId = _uuid.v4();
-    final reference = 'VTP-FAIL-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final reference = '${gateway == 'ClubKonnect' ? 'CK' : 'VTP'}-FAIL-${_uuid.v4().substring(0, 8).toUpperCase()}';
     final ticketId = '#TKT-${(10000 + (_uuid.v4().hashCode % 90000)).abs()}';
 
     if (uid != null) {
@@ -651,7 +653,7 @@ class WalletProvider extends ChangeNotifier {
           'category': category.name,
           'status': 'failed',
           'reference': reference,
-          'provider': 'VTPass',
+          'provider': gateway,
         });
 
         // 2. Insert Support Ticket referencing the failed transaction
@@ -696,11 +698,12 @@ class WalletProvider extends ChangeNotifier {
     required String billDetails,
     required TransactionCategory category,
     required String errorReason,
+    String gateway = 'ClubKonnect',
   }) async {
     if (_balance < amount) return null;
     final uid = _userId;
     final txId = _uuid.v4();
-    final reference = 'VTP-PEND-${_uuid.v4().substring(0, 8).toUpperCase()}';
+    final reference = '${gateway == 'ClubKonnect' ? 'CK' : 'VTP'}-PEND-${_uuid.v4().substring(0, 8).toUpperCase()}';
     final ticketId = '#TKT-${(10000 + (_uuid.v4().hashCode % 90000)).abs()}';
 
     if (uid != null) {
@@ -721,7 +724,7 @@ class WalletProvider extends ChangeNotifier {
           'category': category.name,
           'status': 'pending',
           'reference': reference,
-          'provider': 'VTPass',
+          'provider': gateway,
         });
 
         // 3. Insert Support Ticket referencing the pending transaction
