@@ -251,8 +251,8 @@ serve(async (req) => {
 
       // C: Failed check
       return new Response(JSON.stringify({
-        code: ckData.statusCode?.toString() || "011",
-        response_description: ckData.description || ckData.remark || "Transaction failed.",
+        code: ckData.statusCode?.toString() || ckData.status?.toString() || "011",
+        response_description: ckData.description || ckData.remark || ckData.status?.toString() || "Transaction failed.",
         content: {
           transactions: {
             status: "failed"
