@@ -62,7 +62,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
       BrandedLoadingOverlay.show(context, message: 'Initializing payment...');
       final authUrl = await walletProvider.initializePayment(
         amount,
-        callbackUrl: kIsWeb ? Uri.base.toString() : null,
+        callbackUrl: kIsWeb ? Uri.base.origin : null,
       );
       if (authUrl == null || authUrl.isEmpty) {
         throw Exception('Authorization URL is empty.');
