@@ -42,8 +42,8 @@ serve(async (req) => {
       });
     }
 
-    // 2. Parse request amount (in Naira)
-    const { amount } = await req.json();
+    // 2. Parse request amount (in Naira) and optional callback_url
+    const { amount, callback_url } = await req.json();
     if (!amount || isNaN(amount) || amount <= 0) {
       return new Response(JSON.stringify({ error: "A valid positive amount is required" }), {
         status: 400,
@@ -68,7 +68,7 @@ serve(async (req) => {
         metadata: {
           user_id: user.id,
         },
-        callback_url: "io.supabase.mspay://payment-callback",
+        callback_url: callback_url || "io.supabase.mspay://payment-callback",
       }),
     });
 

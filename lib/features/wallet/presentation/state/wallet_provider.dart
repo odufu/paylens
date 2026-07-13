@@ -341,7 +341,7 @@ class WalletProvider extends ChangeNotifier {
 
   /// Initializes a secure payment gateway session via Paystack.
   /// Returns the authorization URL to load in the browser.
-  Future<String?> initializePayment(double amount) async {
+  Future<String?> initializePayment(double amount, {String? callbackUrl}) async {
     if (amount <= 0) {
       throw Exception('Please enter a valid amount greater than 0.');
     }
@@ -350,11 +350,16 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final Map<String, dynamic> bodyData = {
+        'amount': amount,
+      };
+      if (callbackUrl != null) {
+        bodyData['callback_url'] = callbackUrl;
+      }
+
       final response = await SupabaseService.client.functions.invoke(
         'paystack-initialize-transaction',
-        body: {
-          'amount': amount,
-        },
+        body: bodyData,
       );
 
       _isSyncing = false;
