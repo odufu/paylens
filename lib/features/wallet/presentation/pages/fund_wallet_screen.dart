@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
 import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/presentation/pages/paystack_webview_page.dart';
 import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FundWalletScreen extends StatefulWidget {
   const FundWalletScreen({super.key});
@@ -65,14 +67,24 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
 
       if (mounted) {
         BrandedLoadingOverlay.hide(context);
-        // Open the payment inside our custom, controlled WebView frame
-        final bool? success = await Navigator.push<bool>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PaystackWebViewPage(initialUrl: authUrl),
-          ),
-        );
-        debugPrint("Payment WebView closed. Status: $success");
+        
+        if (kIsWeb) {
+          final uri = Uri.parse(authUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            throw Exception('Could not launch payment URL.');
+          }
+        } else {
+          // Open the payment inside our custom, controlled WebView frame
+          final bool? success = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaystackWebViewPage(initialUrl: authUrl),
+            ),
+          );
+          debugPrint("Payment WebView closed. Status: $success");
+        }
       }
 
       // Automatically refresh the wallet balance from the database after the webview closes
