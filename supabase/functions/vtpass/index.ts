@@ -192,13 +192,13 @@ serve(async (req) => {
       const requestId = body.request_id || `CK-${Date.now()}`;
 
       if (serviceType === 'Airtime') {
-        ckUrl = `https://www.nellobytesystems.com/APIBuyAirtimeV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&Amount=${body.amount}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIAirtimeV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&Amount=${body.amount}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Data') {
-        ckUrl = `https://www.nellobytesystems.com/APIBuyDataV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIDatabundleV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Cable TV') {
-        ckUrl = `https://www.nellobytesystems.com/APIBuyCableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&Package=${body.variation_code}&SmartCardNo=${body.billersCode}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APICableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&Package=${body.variation_code}&SmartCardNo=${body.billersCode}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Electricity') {
-        ckUrl = `https://www.nellobytesystems.com/APIBuyElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterNo=${body.billersCode}&Amount=${body.amount}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterNo=${body.billersCode}&Amount=${body.amount}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
       }
 
       console.log(`Submitting purchase to ClubKonnect: ${ckUrl.replace(CLUBKONNECT_API_KEY, "HIDDEN_KEY")}`);
