@@ -930,6 +930,13 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           category: TransactionCategory.bills,
         );
 
+        if (success) {
+          final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+          if (earnedPoints > 0) {
+            await walletProvider.addLoyaltyPoints(earnedPoints);
+          }
+        }
+
         if (mounted) {
           BrandedLoadingOverlay.hide(context);
           setState(() {

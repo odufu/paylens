@@ -221,30 +221,53 @@ class DashboardScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentLime.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              LucideIcons.sparkles,
-                              color: AppColors.accentLime,
-                              size: 12,
+                      GestureDetector(
+                        onTap: () => _showRedeemPointsDialog(context, walletProvider),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentLime.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.accentLime.withOpacity(0.3),
+                              width: 1,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${walletProvider.loyaltyPoints} LensPoints',
-                              style: const TextStyle(
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.sparkles,
                                 color: AppColors.accentLime,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                                size: 12,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                '${walletProvider.loyaltyPoints} LensPoints',
+                                style: const TextStyle(
+                                  color: AppColors.accentLime,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentLime,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'REDEEM',
+                                  style: TextStyle(
+                                    color: AppColors.primaryForest,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -648,6 +671,167 @@ class DashboardScreen extends StatelessWidget {
           color: AppColors.accentLime,
         ),
       ),
+    );
+  }
+
+  void _showRedeemPointsDialog(BuildContext context, WalletProvider walletProvider) {
+    final pointsController = TextEditingController(text: walletProvider.loyaltyPoints.toString());
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+    bool isRedeeming = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Theme.of(context).cardColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Row(
+                children: [
+                  Icon(LucideIcons.sparkles, color: AppColors.accentLime),
+                  SizedBox(width: 10),
+                  Text(
+                    'Redeem LensPoints',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Convert your loyalty LensPoints directly to wallet cash. 1 LensPoint = ₦1.00 Naira.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : AppColors.textGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryForest.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.primaryForest.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'YOUR BALANCE',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textGrey,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${walletProvider.loyaltyPoints} LensPoints',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryForest,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '= ₦${walletProvider.loyaltyPoints}.00 Naira Value',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: pointsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Points to Redeem',
+                        hintText: 'Enter amount of points',
+                        prefixIcon: Icon(LucideIcons.sparkles),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter points to redeem';
+                        }
+                        final int? p = int.tryParse(val.trim());
+                        if (p == null || p <= 0) {
+                          return 'Enter a valid positive number';
+                        }
+                        if (p > walletProvider.loyaltyPoints) {
+                          return 'Insufficient points balance';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isRedeeming ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.textGrey)),
+                ),
+                ElevatedButton(
+                  onPressed: isRedeeming || walletProvider.loyaltyPoints <= 0
+                      ? null
+                      : () async {
+                          if (formKey.currentState?.validate() ?? false) {
+                            setDialogState(() {
+                              isRedeeming = true;
+                            });
+
+                            final int points = int.parse(pointsController.text.trim());
+                            final bool success = await walletProvider.redeemPointsToCash(points);
+
+                            if (context.mounted) {
+                              Navigator.of(context).pop(); // Close dialog
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    success
+                                        ? 'Successfully redeemed $points LensPoints for ₦$points.00!'
+                                        : 'Failed to redeem points. Please try again.',
+                                  ),
+                                  backgroundColor: success ? AppColors.successGreen : AppColors.errorRed,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryForest,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isRedeeming
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Convert to Cash'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

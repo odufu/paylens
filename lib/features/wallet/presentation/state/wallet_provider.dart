@@ -300,6 +300,61 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Redeems loyalty points to wallet cash (1 point = ₦1.00)
+  Future<bool> redeemPointsToCash(int pointsToRedeem) async {
+    if (pointsToRedeem <= 0 || _loyaltyPoints < pointsToRedeem) {
+      return false;
+    }
+
+    final uid = _userId;
+    if (uid == null) return false;
+
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      final double cashAmount = pointsToRedeem.toDouble();
+      final newPoints = _loyaltyPoints - pointsToRedeem;
+      final newBalance = _balance + cashAmount;
+
+      // 1. Update user profile (deduct points and add cash balance)
+      await SupabaseService.client
+          .from('profiles')
+          .update({
+            'loyalty_points': newPoints,
+            'wallet_balance': newBalance,
+          })
+          .eq('id', uid);
+
+      // 2. Insert transaction record
+      final txReference = 'CK-REDEEM-${_uuid.v4().substring(0, 8).toUpperCase()}';
+      await SupabaseService.client.from('transactions').insert({
+        'profile_id': uid,
+        'title': 'Points Redemption',
+        'subtitle': 'Converted $pointsToRedeem LensPoints to Cash',
+        'amount': cashAmount,
+        'category': 'wallet',
+        'status': 'success',
+        'reference': txReference,
+        'provider': 'System',
+      });
+
+      // 3. Update local state
+      _loyaltyPoints = newPoints;
+      _balance = newBalance;
+      
+      _isSyncing = false;
+      await _saveLocalState();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Failed to redeem loyalty points: $e');
+      _isSyncing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Securely verifies user's BVN and date of birth, then provisions virtual accounts
   Future<bool> verifyBvnAndProvisionWallet({
     required String bvn,
