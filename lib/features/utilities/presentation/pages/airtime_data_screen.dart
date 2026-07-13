@@ -130,7 +130,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   List<Map<String, dynamic>> _getFilteredPackages() {
     final provider = _selectedProvider.toLowerCase();
 
-    if (_liveVariations != null && _liveVariations!.isNotEmpty) {
+    if (_liveVariations != null) {
       final List<Map<String, dynamic>> filtered = [];
       for (final v in _liveVariations!) {
         final name = v['name'].toString();
@@ -149,9 +149,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           });
         }
       }
-      if (filtered.isNotEmpty) {
-        return filtered;
-      }
+      return filtered;
     }
 
     if (_selectedCategory == 'SME Data') {
