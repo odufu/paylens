@@ -252,29 +252,17 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // Fund/Send CTA Buttons (Centered, Compact Row)
+                // Fund CTA Button (Centered, Compact Row)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildCompactCTAButton(
-                      label: 'Fund',
+                      label: 'Fund Wallet',
                       icon: LucideIcons.plus,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const FundWalletScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _buildCompactCTAButton(
-                      label: 'Send',
-                      icon: LucideIcons.send,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const TransferScreen(),
                           ),
                         );
                       },

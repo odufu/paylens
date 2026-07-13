@@ -1521,59 +1521,77 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                     ],
 
                     const SizedBox(height: 32),
-
-                    // Submit Purchase Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: _isProcessing
-                            ? null
-                            : () => _processPayment(walletProvider),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryForest,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: _isProcessing
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(LucideIcons.shoppingBag),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _isDataTab
-                                        ? 'Buy Bundle (${CurrencyFormatter.format(_selectedDataPackage?["amount"] ?? 0)})'
-                                        : 'Pay Airtime',
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Text(
-                        'Available Balance: ${CurrencyFormatter.format(walletProvider.balance)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textGrey,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white10
+                    : Colors.grey.shade200,
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Submit Purchase Button
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _processPayment(walletProvider),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryForest,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(LucideIcons.shoppingBag),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isDataTab
+                                  ? 'Buy Bundle (${CurrencyFormatter.format(_selectedDataPackage?["amount"] ?? 0)})'
+                                  : 'Pay Airtime',
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  'Available Balance: ${CurrencyFormatter.format(walletProvider.balance)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textGrey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
