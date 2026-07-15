@@ -905,9 +905,16 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           : 'Processing airtime top-up...',
     );
 
+    String formattedPhone = _phoneController.text.trim().replaceAll(' ', '');
+    if (formattedPhone.startsWith('+234')) {
+      formattedPhone = '0${formattedPhone.substring(4)}';
+    } else if (formattedPhone.startsWith('234') && formattedPhone.length == 13) {
+      formattedPhone = '0${formattedPhone.substring(3)}';
+    }
+
     final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: _isDataTab ? 'Data' : 'Airtime',
-      target: _phoneController.text.trim(),
+      target: formattedPhone,
       amount: amount,
       providerName: _selectedProvider,
       packageName: _isDataTab ? _selectedDataPackage!['name'] : null,
@@ -928,6 +935,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (success) {
@@ -963,6 +971,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
           errorReason: purchaseResult.error ?? 'Transaction is pending network operator confirmation.',
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (mounted) {
@@ -988,6 +997,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
           errorReason: errorMsg,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (mounted) {
@@ -1028,7 +1038,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -1146,7 +1156,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                   boxShadow: isSelected
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.15),
+                                            color: Colors.black.withValues(alpha: 0.15),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -1213,7 +1223,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                   0.12,
                                 ),
                                 side: BorderSide(
-                                  color: provInfo['color'].withOpacity(0.4),
+                                  color: provInfo['color'].withValues(alpha: 0.4),
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -1321,8 +1331,8 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                 backgroundColor:
                                     Theme.of(context).brightness ==
                                         Brightness.dark
-                                    ? Colors.white.withOpacity(0.06)
-                                    : Colors.black.withOpacity(0.04),
+                                    ? Colors.white.withValues(alpha: 0.06)
+                                    : Colors.black.withValues(alpha: 0.04),
                                 side: BorderSide(
                                   color: isSelected
                                       ? AppColors.accentLime
@@ -1330,7 +1340,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                                 Brightness.dark
                                             ? Colors.white12
                                             : AppColors.textLightGrey
-                                                  .withOpacity(0.5)),
+                                                  .withValues(alpha: 0.5)),
                                 ),
                                 onSelected: (selected) {
                                   if (selected) {
@@ -1449,8 +1459,8 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 
                             final itemBgColor = isSelected
                                 ? (isDark
-                                      ? AppColors.accentLime.withOpacity(0.08)
-                                      : AppColors.primaryForest.withOpacity(0.06))
+                                      ? AppColors.accentLime.withValues(alpha: 0.08)
+                                      : AppColors.primaryForest.withValues(alpha: 0.06))
                                 : Theme.of(context).cardColor;
 
                             final itemBorderColor = isSelected

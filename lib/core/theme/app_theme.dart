@@ -79,11 +79,11 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.textLightGrey.withOpacity(0.5)),
+          borderSide: BorderSide(color: AppColors.textLightGrey.withValues(alpha: 0.5)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.textLightGrey.withOpacity(0.5)),
+          borderSide: BorderSide(color: AppColors.textLightGrey.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

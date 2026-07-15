@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/presentation/widgets/branded_spinner.dart';
 import 'package:mspay/features/auth/presentation/state/auth_provider.dart';
+import 'package:mspay/core/services/network_status_provider.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -27,6 +28,24 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _handleLogin(AuthProvider authProvider) async {
     if (!_formKey.currentState!.validate()) return;
+
+    final isOnline = Provider.of<NetworkStatusProvider>(context, listen: false).isOnline;
+    if (!isOnline) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Internet Connection'),
+          content: const Text('Please check your network settings and try again.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     try {
       BrandedLoadingOverlay.show(context, message: 'Logging in...');
@@ -175,12 +194,12 @@ class _SignInScreenState extends State<SignInScreen> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text('OR', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                     ),
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -191,6 +210,24 @@ class _SignInScreenState extends State<SignInScreen> {
                     onPressed: authProvider.isLoading
                         ? null
                         : () async {
+                            final isOnline = Provider.of<NetworkStatusProvider>(context, listen: false).isOnline;
+                            if (!isOnline) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('No Internet Connection'),
+                                  content: const Text('Please check your network settings and try again.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+
                             try {
                               BrandedLoadingOverlay.show(context, message: 'Authenticating...');
                               await authProvider.signInWithGoogle();

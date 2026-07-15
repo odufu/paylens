@@ -593,6 +593,7 @@ class WalletProvider extends ChangeNotifier {
     required String billDetails,
     required TransactionCategory category,
     String gateway = 'ClubKonnect',
+    String? vendorReference,
   }) async {
     if (_balance < amount) return false;
     final uid = _userId;
@@ -607,7 +608,7 @@ class WalletProvider extends ChangeNotifier {
             .eq('id', uid);
 
         // Insert transaction record
-        final insertRes = await SupabaseService.client.from('transactions').insert({
+        final Map<String, dynamic> insertData = {
           'profile_id': uid,
           'title': serviceName,
           'subtitle': billDetails,
@@ -616,7 +617,16 @@ class WalletProvider extends ChangeNotifier {
           'status': 'success',
           'reference': reference,
           'provider': gateway,
-        }).select('id').maybeSingle();
+        };
+        if (vendorReference != null) {
+          insertData['vendor_reference'] = vendorReference;
+        }
+
+        final insertRes = await SupabaseService.client
+            .from('transactions')
+            .insert(insertData)
+            .select('id')
+            .maybeSingle();
 
         if (insertRes != null && insertRes['id'] != null) {
           final txId = insertRes['id'];
@@ -680,6 +690,7 @@ class WalletProvider extends ChangeNotifier {
       status: TransactionStatus.success,
       reference: reference,
       provider: 'VTPass',
+      vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
     await _saveLocalState();
@@ -695,6 +706,7 @@ class WalletProvider extends ChangeNotifier {
     required TransactionCategory category,
     required String errorReason,
     String gateway = 'ClubKonnect',
+    String? vendorReference,
   }) async {
     final uid = _userId;
     final txId = _uuid.v4();
@@ -704,7 +716,7 @@ class WalletProvider extends ChangeNotifier {
     if (uid != null) {
       try {
         // 1. Insert failed transaction record (do NOT deduct balance!)
-        await SupabaseService.client.from('transactions').insert({
+        final Map<String, dynamic> insertData = {
           'id': txId,
           'profile_id': uid,
           'title': serviceName,
@@ -714,7 +726,12 @@ class WalletProvider extends ChangeNotifier {
           'status': 'failed',
           'reference': reference,
           'provider': gateway,
-        });
+        };
+        if (vendorReference != null) {
+          insertData['vendor_reference'] = vendorReference;
+        }
+
+        await SupabaseService.client.from('transactions').insert(insertData);
 
         // 2. Insert Support Ticket referencing the failed transaction
         await SupabaseService.client.from('support_tickets').insert({
@@ -744,6 +761,7 @@ class WalletProvider extends ChangeNotifier {
       status: TransactionStatus.failed,
       reference: reference,
       provider: 'VTPass',
+      vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
     await _saveLocalState();
@@ -759,6 +777,7 @@ class WalletProvider extends ChangeNotifier {
     required TransactionCategory category,
     required String errorReason,
     String gateway = 'ClubKonnect',
+    String? vendorReference,
   }) async {
     if (_balance < amount) return null;
     final uid = _userId;
@@ -775,7 +794,7 @@ class WalletProvider extends ChangeNotifier {
             .eq('id', uid);
 
         // 2. Insert pending transaction record
-        await SupabaseService.client.from('transactions').insert({
+        final Map<String, dynamic> insertData = {
           'id': txId,
           'profile_id': uid,
           'title': serviceName,
@@ -785,7 +804,12 @@ class WalletProvider extends ChangeNotifier {
           'status': 'pending',
           'reference': reference,
           'provider': gateway,
-        });
+        };
+        if (vendorReference != null) {
+          insertData['vendor_reference'] = vendorReference;
+        }
+
+        await SupabaseService.client.from('transactions').insert(insertData);
 
         // 3. Insert Support Ticket referencing the pending transaction
         await SupabaseService.client.from('support_tickets').insert({
@@ -816,6 +840,7 @@ class WalletProvider extends ChangeNotifier {
       status: TransactionStatus.pending,
       reference: reference,
       provider: 'VTPass',
+      vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
     await _saveLocalState();

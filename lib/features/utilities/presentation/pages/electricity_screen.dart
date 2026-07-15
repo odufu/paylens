@@ -164,6 +164,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           serviceName: 'Electricity Bill ($_selectedDisco)',
           billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee)',
           category: TransactionCategory.bills,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (success) {
@@ -200,6 +201,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
           category: TransactionCategory.bills,
           errorReason: errorMsg,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (mounted) {
@@ -242,9 +244,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryForest.withOpacity(0.06),
+                  color: AppColors.primaryForest.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primaryForest.withOpacity(0.15)),
+                  border: Border.all(color: AppColors.primaryForest.withValues(alpha: 0.15)),
                 ),
                 child: const Row(
                   children: [
@@ -335,9 +337,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.successGreen.withOpacity(0.08),
+                    color: AppColors.successGreen.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.successGreen.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,9 +377,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.errorRed.withOpacity(0.08),
+                    color: AppColors.errorRed.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.errorRed.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -411,7 +413,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                   fillColor: _isVerified 
                       ? Theme.of(context).cardColor 
                       : (Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white.withOpacity(0.05) 
+                          ? Colors.white.withValues(alpha: 0.05) 
                           : Colors.grey.shade100),
                 ),
                 validator: (val) {
@@ -438,12 +440,12 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.02)
+                              ? Colors.white.withValues(alpha: 0.02)
                               : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.04)
+                                ? Colors.white.withValues(alpha: 0.04)
                                 : Colors.grey.shade200,
                           ),
                         ),

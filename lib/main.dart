@@ -10,6 +10,8 @@ import 'package:mspay/core/theme/theme_provider.dart';
 import 'package:mspay/features/auth/presentation/pages/welcome_screen.dart';
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
 import 'package:mspay/features/notifications/presentation/state/notification_provider.dart';
+import 'package:mspay/core/services/network_status_provider.dart';
+import 'package:mspay/core/presentation/widgets/network_status_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +29,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => sl<ChatProvider>()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => NetworkStatusProvider()),
       ],
       child: const PayLensesApp(),
     ),
@@ -50,6 +53,19 @@ class PayLensesApp extends StatelessWidget {
           ? const MainNavigationHolder() 
           : const WelcomeScreen(),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            const Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: NetworkStatusBanner(),
+            ),
+          ],
+        );
+      },
     );
   }
 }

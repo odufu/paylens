@@ -130,13 +130,13 @@ class _PushNotificationOverlayState extends State<_PushNotificationOverlay>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
               ],
               border: Border.all(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
             child: Row(
@@ -145,7 +145,7 @@ class _PushNotificationOverlayState extends State<_PushNotificationOverlay>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getIconBg().withOpacity(0.12),
+                    color: _getIconBg().withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -172,7 +172,7 @@ class _PushNotificationOverlayState extends State<_PushNotificationOverlay>
                       Text(
                         widget.body,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 11,
                           height: 1.4,
                         ),
@@ -184,7 +184,7 @@ class _PushNotificationOverlayState extends State<_PushNotificationOverlay>
                   onTap: _dismiss,
                   child: Icon(
                     LucideIcons.x,
-                    color: Colors.white.withOpacity(0.4),
+                    color: Colors.white.withValues(alpha: 0.4),
                     size: 16,
                   ),
                 ),

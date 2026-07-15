@@ -47,7 +47,7 @@ serve(async (req) => {
       const products = ckData.MOBILE_NETWORK?.[ckNetworkKey]?.[0]?.PRODUCT || [];
       
       const variations = products.map((p: any) => ({
-        variation_code: p.PRODUCT_CODE,
+        variation_code: p.PRODUCT_ID,
         name: p.PRODUCT_NAME,
         variation_amount: p.PRODUCT_AMOUNT,
         fixedPrice: "Yes"
@@ -67,6 +67,8 @@ serve(async (req) => {
         headers: corsHeaders,
       });
     }
+
+
 
     // 2. Intercept balance queries to retrieve ClubKonnect User Wallet Balance
     if (endpoint === 'balance') {
@@ -194,7 +196,7 @@ serve(async (req) => {
       if (serviceType === 'Airtime') {
         ckUrl = `https://www.nellobytesystems.com/APIAirtimeV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&Amount=${body.amount}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Data') {
-        ckUrl = `https://www.nellobytesystems.com/APIDatabundleV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIDatabundleV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNumber=${body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Cable TV') {
         ckUrl = `https://www.nellobytesystems.com/APICableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&Package=${body.variation_code}&SmartCardNo=${body.billersCode}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
       } else if (serviceType === 'Electricity') {

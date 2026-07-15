@@ -475,7 +475,6 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
   // --- OPERATIONS TAB ---
   Widget _buildOperationsTab(BuildContext context, TextTheme textTheme, bool isDark) {
     final activeTickets = _tickets.where((t) => t['status'] == 'escalated').toList();
-    final resolvedTickets = _tickets.where((t) => t['status'] != 'escalated').toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -527,7 +526,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                 final ticket = activeTickets[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+                  color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -540,7 +539,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.12),
+                                color: Colors.orange.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -630,7 +629,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                 final isCredit = (tx['amount'] as num) > 0;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -712,7 +711,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primaryForest.withOpacity(0.2),
+                        color: AppColors.primaryForest.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -826,7 +825,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                               child: Text(
                                 _isLoadingVTPassBalance ? 'Syncing...' : 'Sync Balance',
                                 style: TextStyle(
-                                  color: isDark ? Colors.white70 : AppColors.textDark.withOpacity(0.7),
+                                  color: isDark ? Colors.white70 : AppColors.textDark.withValues(alpha: 0.7),
                                   fontSize: 10,
                                   decoration: TextDecoration.underline,
                                 ),
@@ -958,7 +957,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
-                  color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -982,7 +981,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.12),
+                                  color: statusColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -1063,10 +1062,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
           width: 1,
         ),
       ),
@@ -1107,7 +1106,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1163,10 +1162,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
                 width: 1,
               ),
             ),
@@ -1239,7 +1238,7 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+              color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
@@ -1330,10 +1329,10 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
                 width: 1,
               ),
             ),

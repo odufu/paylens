@@ -105,7 +105,7 @@ class DashboardScreen extends StatelessWidget {
                               'Hello,',
                               style: textTheme.bodySmall?.copyWith(
                                 color: AppColors.textLightGrey
-                                    .withOpacity(0.8),
+                                    .withValues(alpha: 0.8),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -137,7 +137,7 @@ class DashboardScreen extends StatelessWidget {
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Colors.white.withOpacity(0.08),
+                                  color: Colors.white.withValues(alpha: 0.08),
                                 ),
                                 child: const Icon(
                                   LucideIcons.bell,
@@ -186,7 +186,7 @@ class DashboardScreen extends StatelessWidget {
                       Text(
                         'Your Wallet Balance',
                         style: textTheme.bodySmall?.copyWith(
-                          color: AppColors.accentLime.withOpacity(0.9),
+                          color: AppColors.accentLime.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
                         ),
@@ -226,10 +226,10 @@ class DashboardScreen extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.accentLime.withOpacity(0.12),
+                            color: AppColors.accentLime.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: AppColors.accentLime.withOpacity(0.3),
+                              color: AppColors.accentLime.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -303,9 +303,9 @@ class DashboardScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.accentLime.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.accentLime.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -331,7 +331,7 @@ class DashboardScreen extends StatelessWidget {
                                 Text(
                                   'Verify your identity (BVN) to activate your virtual bank accounts.',
                                   style: TextStyle(
-                                    color: AppColors.textLightGrey.withOpacity(0.8),
+                                    color: AppColors.textLightGrey.withValues(alpha: 0.8),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -491,13 +491,13 @@ class DashboardScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.04)
+                                  ? Colors.white.withValues(alpha: 0.04)
                                   : Colors.grey.shade100,
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.02),
+                                color: Colors.black.withValues(alpha: 0.02),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -580,13 +580,13 @@ class DashboardScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white.withOpacity(0.04)
+                                  ? Colors.white.withValues(alpha: 0.04)
                                   : Colors.grey.shade100,
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.02),
+                                color: Colors.black.withValues(alpha: 0.02),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -717,9 +717,9 @@ class DashboardScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryForest.withOpacity(0.08),
+                          color: AppColors.primaryForest.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.primaryForest.withOpacity(0.2)),
+                          border: Border.all(color: AppColors.primaryForest.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           children: [
@@ -878,7 +878,7 @@ class DashboardScreen extends StatelessWidget {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
           border: Border.all(color: Colors.white12),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -959,7 +959,7 @@ class DashboardScreen extends StatelessWidget {
 
     // Dynamically choose visual style to feel premium (Spotify, GoDaddy, MTN style colors)
     IconData itemIcon = LucideIcons.dollarSign;
-    Color iconBg = AppColors.primaryForest.withOpacity(0.08);
+    Color iconBg = AppColors.primaryForest.withValues(alpha: 0.08);
     Color iconColor = AppColors.primaryForest;
 
     if (tx.title.toLowerCase().contains('spotify')) {
@@ -981,7 +981,7 @@ class DashboardScreen extends StatelessWidget {
         tx.title.toLowerCase().contains('monnify') ||
         tx.title.toLowerCase().contains('wema')) {
       itemIcon = LucideIcons.wallet;
-      iconBg = AppColors.successGreen.withOpacity(0.1);
+      iconBg = AppColors.successGreen.withValues(alpha: 0.1);
       iconColor = AppColors.successGreen;
     } else if (tx.title.toLowerCase().contains('transfer')) {
       itemIcon = LucideIcons.send;
@@ -1005,7 +1005,7 @@ class DashboardScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.02)
+            ? Colors.white.withValues(alpha: 0.02)
             : const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -1071,7 +1071,7 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.successGreen.withOpacity(0.12),
+                  color: AppColors.successGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(

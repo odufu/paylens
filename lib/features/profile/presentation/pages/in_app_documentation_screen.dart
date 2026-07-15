@@ -187,13 +187,13 @@ class InAppDocumentationScreen extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isWarning
-            ? Colors.red.withOpacity(0.08)
-            : AppColors.accentLime.withOpacity(0.08),
+            ? Colors.red.withValues(alpha: 0.08)
+            : AppColors.accentLime.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isWarning
-              ? Colors.red.withOpacity(0.3)
-              : AppColors.accentLime.withOpacity(0.3),
+              ? Colors.red.withValues(alpha: 0.3)
+              : AppColors.accentLime.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -491,7 +491,6 @@ class InAppDocumentationScreen extends StatelessWidget {
     required String desc,
     required BuildContext context,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(

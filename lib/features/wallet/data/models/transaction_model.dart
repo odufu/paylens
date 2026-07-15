@@ -20,6 +20,7 @@ class TransactionModel {
   final TransactionStatus status;
   final String reference;
   final String provider; // "Paystack" or "VTPass"
+  final String? vendorReference;
 
   TransactionModel({
     required this.id,
@@ -31,6 +32,7 @@ class TransactionModel {
     required this.status,
     required this.reference,
     required this.provider,
+    this.vendorReference,
   });
 
   Map<String, dynamic> toJson() {
@@ -44,6 +46,7 @@ class TransactionModel {
       'status': status.name,
       'reference': reference,
       'provider': provider,
+      if (vendorReference != null) 'vendor_reference': vendorReference,
     };
   }
 
@@ -52,12 +55,13 @@ class TransactionModel {
       id: json['id'],
       title: json['title'],
       subtitle: json['subtitle'],
-      amount: json['amount'],
+      amount: (json['amount'] as num).toDouble(),
       date: DateTime.parse(json['date']),
       category: TransactionCategory.values.firstWhere((e) => e.name == json['category']),
       status: TransactionStatus.values.firstWhere((e) => e.name == json['status']),
       reference: json['reference'],
       provider: json['provider'],
+      vendorReference: json['vendor_reference'] ?? json['vendorReference'],
     );
   }
 }

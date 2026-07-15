@@ -145,6 +145,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
           serviceName: '$_selectedProvider Subscription',
           billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']} (Incl. Fee: ₦$fee)',
           category: TransactionCategory.bills,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (success) {
@@ -180,6 +181,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
           billDetails: 'Card: ${_smartcardController.text} • ${_selectedPackage!['name']}',
           category: TransactionCategory.bills,
           errorReason: errorMsg,
+          vendorReference: purchaseResult.transactionId,
         );
 
         if (mounted) {
@@ -309,9 +311,9 @@ class _CableTvScreenState extends State<CableTvScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.successGreen.withOpacity(0.08),
+                    color: AppColors.successGreen.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.successGreen.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,9 +351,9 @@ class _CableTvScreenState extends State<CableTvScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.errorRed.withOpacity(0.08),
+                    color: AppColors.errorRed.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.errorRed.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -416,12 +418,12 @@ class _CableTvScreenState extends State<CableTvScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.02)
+                              ? Colors.white.withValues(alpha: 0.02)
                               : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white.withOpacity(0.04)
+                                ? Colors.white.withValues(alpha: 0.04)
                                 : Colors.grey.shade200,
                           ),
                         ),

@@ -81,7 +81,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             CircleAvatar(
               radius: 18,
               // ignore: deprecated_member_use
-              backgroundColor: AppColors.accentLime.withOpacity(0.2),
+              backgroundColor: AppColors.accentLime.withValues(alpha: 0.2),
               child: const Icon(
                 LucideIcons.bot,
                 color: AppColors.accentLime,
@@ -272,7 +272,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             if (!isUser) ...[
               CircleAvatar(
                 radius: 14,
-                backgroundColor: AppColors.primaryForest.withOpacity(0.08),
+                backgroundColor: AppColors.primaryForest.withValues(alpha: 0.08),
                 child: const Icon(
                   LucideIcons.bot,
                   size: 16,
@@ -346,7 +346,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppColors.primaryForest.withOpacity(0.3),
+                        color: AppColors.primaryForest.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),

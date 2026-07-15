@@ -46,17 +46,17 @@ class _AnimatedLogoBorderState extends State<AnimatedLogoBorder>
             child: Container(
               padding: EdgeInsets.all(24 * widget.scale),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.accentLime.withOpacity(0.04 * glow),
+                    color: AppColors.accentLime.withValues(alpha: 0.04 * glow),
                     blurRadius: 8.0 * glow * widget.scale,
                     spreadRadius: 1.0 * glow * widget.scale,
                   ),
                 ],
                 border: Border.all(
-                  color: AppColors.accentLime.withOpacity(0.1 + (0.15 * (glow / 4.0))),
+                  color: AppColors.accentLime.withValues(alpha: 0.1 + (0.15 * (glow / 4.0))),
                   width: (1.25 + (1.0 * (glow / 4.0))) * widget.scale,
                 ),
               ),
@@ -195,7 +195,7 @@ class WalletBasePainter extends CustomPainter {
 
     // 1. Draw TWO slanted cards sticking out from the top (teal/accent green)
     // First card (back card, slightly more slanted/transparent or darker)
-    paint.color = accentColor.withOpacity(0.7);
+    paint.color = accentColor.withValues(alpha: 0.7);
     final pathCard1 = Path();
     pathCard1.moveTo(w * 0.28, h * 0.3);
     pathCard1.lineTo(w * 0.45, h * 0.12);
@@ -236,7 +236,7 @@ class WalletBasePainter extends CustomPainter {
 
     // 5. Border around Wallet outline
     paint
-      ..color = accentColor.withOpacity(0.35)
+      ..color = accentColor.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.018;
     canvas.drawRRect(walletRRect, paint);
@@ -267,7 +267,7 @@ class CameraLensPainter extends CustomPainter {
 
     // 2. White outer highlights
     paint
-      ..color = Colors.white.withOpacity(0.9)
+      ..color = Colors.white.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.03;
     canvas.drawCircle(center, w * 0.46, paint);
@@ -293,7 +293,7 @@ class CameraLensPainter extends CustomPainter {
 
     // 6. Draw Aperture Blades (Lines creating rotation effect)
     paint
-      ..color = Colors.white.withOpacity(0.35)
+      ..color = Colors.white.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.025;
     
@@ -309,7 +309,7 @@ class CameraLensPainter extends CustomPainter {
 
     // 7. Glass Glare reflection spots (makes it feel 3D and shiny)
     paint
-      ..color = Colors.white.withOpacity(0.7)
+      ..color = Colors.white.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(center.dx - w * 0.08, center.dy - h * 0.08), w * 0.06, paint);
     canvas.drawCircle(Offset(center.dx + w * 0.1, center.dy + h * 0.1), w * 0.03, paint);
@@ -324,7 +324,7 @@ class BrandedLoadingOverlay {
     showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.8),
+      barrierColor: Colors.black.withValues(alpha: 0.8),
       builder: (context) {
         return WillPopScope(
           onWillPop: () async => false,
@@ -406,9 +406,9 @@ class FailureDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.redAccent.withOpacity(0.08),
+              color: Colors.redAccent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
             ),
             child: Text(
               'Support Ticket: $ticketId',
@@ -493,9 +493,9 @@ class PendingDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.08),
+              color: Colors.amber.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.withOpacity(0.2)),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
             ),
             child: Text(
               'Audit Ticket: $ticketId',

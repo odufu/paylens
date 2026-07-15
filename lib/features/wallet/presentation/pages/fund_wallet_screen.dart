@@ -141,9 +141,9 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primaryForest.withOpacity(0.08),
+                color: AppColors.primaryForest.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryForest.withOpacity(0.2)),
+                border: Border.all(color: AppColors.primaryForest.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -193,7 +193,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                 border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -272,7 +272,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryForest.withOpacity(0.35),
+            color: AppColors.primaryForest.withValues(alpha: 0.35),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -413,7 +413,7 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
                         onTap: () => _copyToClipboard(walletId),
                         child: Icon(
                           LucideIcons.copy,
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                           size: 14,
                         ),
                       ),

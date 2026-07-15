@@ -45,8 +45,8 @@ class ComingSoonScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.primaryForest.withOpacity(0.15),
-                      AppColors.accentLime.withOpacity(0.2),
+                      AppColors.primaryForest.withValues(alpha: 0.15),
+                      AppColors.accentLime.withValues(alpha: 0.2),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -85,10 +85,10 @@ class ComingSoonScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.accentLime.withOpacity(0.12),
+                  color: AppColors.accentLime.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.accentLime.withOpacity(0.3),
+                    color: AppColors.accentLime.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),

@@ -79,7 +79,7 @@ class WelcomeScreen extends StatelessWidget {
             right: -100,
             child: CircleAvatar(
               radius: 150,
-              backgroundColor: Colors.white.withOpacity(0.03),
+              backgroundColor: Colors.white.withValues(alpha: 0.03),
             ),
           ),
           Positioned(
@@ -87,7 +87,7 @@ class WelcomeScreen extends StatelessWidget {
             left: -80,
             child: CircleAvatar(
               radius: 120,
-              backgroundColor: AppColors.accentLime.withOpacity(0.02),
+              backgroundColor: AppColors.accentLime.withValues(alpha: 0.02),
             ),
           ),
 
@@ -132,7 +132,7 @@ class WelcomeScreen extends StatelessWidget {
                       'Experience premium mobile wealth management and automated utilities. Settle bills instantly via Paystack and VTPass.',
                       textAlign: TextAlign.center,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textLightGrey.withOpacity(0.8),
+                        color: AppColors.textLightGrey.withValues(alpha: 0.8),
                         height: 1.5,
                       ),
                     ),

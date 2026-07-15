@@ -95,7 +95,7 @@ class ReceiptModal extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.successGreen.withOpacity(isDark ? 0.15 : 0.08),
+                color: AppColors.successGreen.withValues(alpha: isDark ? 0.15 : 0.08),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -185,10 +185,10 @@ class ReceiptModal extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.accentLime.withOpacity(isDark ? 0.1 : 0.15),
+                        color: AppColors.accentLime.withValues(alpha: isDark ? 0.1 : 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.accentLime.withOpacity(0.3),
+                          color: AppColors.accentLime.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),

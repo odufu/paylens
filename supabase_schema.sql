@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
     status TEXT NOT NULL CHECK (status IN ('success', 'pending', 'failed')),
     reference TEXT NOT NULL UNIQUE,
     provider TEXT NOT NULL,
+    vendor_reference TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -173,9 +174,11 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 -- Enable RLS on notifications table
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
 CREATE POLICY "Users can view their own notifications" ON public.notifications
     FOR SELECT USING (auth.uid() = profile_id);
 
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
 CREATE POLICY "Users can update their own notifications" ON public.notifications
     FOR UPDATE USING (auth.uid() = profile_id);
 

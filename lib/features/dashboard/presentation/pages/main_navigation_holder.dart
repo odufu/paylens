@@ -70,7 +70,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 12,
                 spreadRadius: 1,
                 offset: const Offset(0, 4),
@@ -106,7 +106,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
         children: [
           Icon(
             icon,
-            color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withOpacity(0.6),
+            color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withValues(alpha: 0.6),
             size: 24,
           ),
           const SizedBox(height: 4),
@@ -114,7 +114,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withOpacity(0.6),
+              color: isActive ? AppColors.accentLime : AppColors.textLightGrey.withValues(alpha: 0.6),
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
@@ -140,7 +140,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.accentLime.withOpacity(0.3),
+                color: AppColors.accentLime.withValues(alpha: 0.3),
                 blurRadius: 6,
                 spreadRadius: 1,
                 offset: const Offset(0, 3),

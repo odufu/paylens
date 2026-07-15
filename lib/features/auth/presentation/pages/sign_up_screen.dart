@@ -222,12 +222,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text('OR', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                     ),
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
                   ],
                 ),
                 const SizedBox(height: 24),

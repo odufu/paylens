@@ -140,7 +140,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
   Widget _buildStepIndicators() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-      color: AppColors.primaryForest.withOpacity(0.05),
+      color: AppColors.primaryForest.withValues(alpha: 0.05),
       child: Row(
         children: [
           _buildStepNode(0, 'Disclosure', _currentStep >= 0),
@@ -209,9 +209,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.primaryForest.withOpacity(0.06),
+            color: AppColors.primaryForest.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primaryForest.withOpacity(0.12)),
+            border: Border.all(color: AppColors.primaryForest.withValues(alpha: 0.12)),
           ),
           child: Column(
             children: [
@@ -378,9 +378,9 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.errorRed.withOpacity(0.08),
+                color: AppColors.errorRed.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.errorRed.withOpacity(0.2)),
+                border: Border.all(color: AppColors.errorRed.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -499,10 +499,10 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,
         ),
       ),
       child: Row(
@@ -525,7 +525,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.successGreen.withOpacity(0.12),
+              color: AppColors.successGreen.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Text(

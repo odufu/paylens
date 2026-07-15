@@ -291,7 +291,7 @@ class _AirtimeToCashScreenState extends State<AirtimeToCashScreen> {
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.15),
+                                          color: Colors.black.withValues(alpha: 0.15),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
                                         ),
@@ -378,9 +378,9 @@ class _AirtimeToCashScreenState extends State<AirtimeToCashScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.accentLime.withOpacity(0.12),
+                            color: AppColors.accentLime.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.accentLime.withOpacity(0.3)),
+                            border: Border.all(color: AppColors.accentLime.withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,7 +422,7 @@ class _AirtimeToCashScreenState extends State<AirtimeToCashScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade100,
+                            color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                           ),

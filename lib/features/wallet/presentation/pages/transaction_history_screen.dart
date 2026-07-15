@@ -99,7 +99,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.successGreen.withOpacity(0.12),
+                          color: AppColors.successGreen.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
@@ -147,6 +147,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   _buildDetailRow('Description', tx.title),
                   _buildDetailRow('Detail', tx.subtitle),
                   _buildDetailRow('Reference ID', tx.reference),
+                  if (tx.vendorReference != null && tx.vendorReference!.isNotEmpty)
+                    _buildDetailRow('Vendor Reference ID', tx.vendorReference!),
                   _buildDetailRow('Payment Provider', tx.provider),
                   _buildDetailRow('Date & Time', DateFormat('MMM dd, yyyy • hh:mm a').format(tx.date)),
                   
@@ -245,9 +247,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Search by description or reference...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                     prefixIcon: const Icon(LucideIcons.search, color: Colors.white54),
-                    fillColor: Colors.white.withOpacity(0.1),
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     filled: true,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -281,7 +283,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive ? AppColors.accentLime : Colors.white.withOpacity(0.1),
+                          color: isActive ? AppColors.accentLime : Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
@@ -405,8 +407,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         onTap: () => _showTransactionDetail(context, tx),
         leading: CircleAvatar(
           backgroundColor: isCredit 
-              ? AppColors.successGreen.withOpacity(0.08) 
-              : AppColors.accentLime.withOpacity(0.15),
+              ? AppColors.successGreen.withValues(alpha: 0.08) 
+              : AppColors.accentLime.withValues(alpha: 0.15),
           child: Icon(
             itemIcon,
             color: isCredit ? AppColors.successGreen : AppColors.primaryForest,

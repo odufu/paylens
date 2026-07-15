@@ -195,7 +195,7 @@ class _TransferScreenState extends State<TransferScreen> {
                           children: [
                             CircleAvatar(
                               radius: 28,
-                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                               child: Text(
                                 b.initials,
                                 style: TextStyle(
@@ -300,9 +300,9 @@ class _TransferScreenState extends State<TransferScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.successGreen.withOpacity(0.08),
+                          color: AppColors.successGreen.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.successGreen.withOpacity(0.3)),
+                          border: Border.all(color: AppColors.successGreen.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [

@@ -93,7 +93,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
           controller: _tabController,
           indicatorColor: AppColors.accentLime,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.6),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
           isScrollable: true,
           tabs: const [
             Tab(text: 'All'),
@@ -187,19 +187,19 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: notif.isRead
-                    ? (isDark ? Colors.white.withOpacity(0.01) : Colors.white)
-                    : (isDark ? Colors.white.withOpacity(0.04) : Colors.white),
+                    ? (isDark ? Colors.white.withValues(alpha: 0.01) : Colors.white)
+                    : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: notif.isRead
-                      ? (isDark ? Colors.white.withOpacity(0.03) : Colors.grey.shade200)
-                      : color.withOpacity(0.3),
+                      ? (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey.shade200)
+                      : color.withValues(alpha: 0.3),
                 ),
                 boxShadow: notif.isRead
                     ? []
                     : [
                         BoxShadow(
-                          color: color.withOpacity(0.05),
+                          color: color.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         )
@@ -212,7 +212,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 18),
