@@ -353,22 +353,29 @@ serve(async (req) => {
       }
       
       const ckData = await ckRes.json();
-      console.log(`ClubKonnect Purchase Response:`, ckData);
+      console.log(`ClubKonnect Purchase Response:`, JSON.stringify(ckData));
 
-      const status = ckData.status?.toString().toUpperCase();
-      const statusCode = parseInt(ckData.statusCode?.toString() || "400");
-      const orderId = ckData.orderId || ckData.orderID || ckData.OrderID || `CK-${Date.now()}`;
+      // ClubKonnect uses 'status' for initial response, 'orderstatus' for callbacks/queries
+      // statuscode is always lowercase in their API
+      const status = (ckData.orderstatus || ckData.status)?.toString().toUpperCase();
+      const rawStatusCode = ckData.statuscode ?? ckData.statusCode ?? ckData.StatusCode;
+      const statusCode = rawStatusCode != null ? parseInt(rawStatusCode.toString()) : null;
+      const orderId = ckData.orderid || ckData.orderId || ckData.orderID || ckData.OrderID || `CK-${Date.now()}`;
+      const responseRemark = ckData.orderremark || ckData.remark || ckData.description || '';
 
-      // A: Success check
+      console.log(`Parsed purchase: status=${status}, statusCode=${statusCode}, orderId=${orderId}`);
+
+      // A: Success check — statuscode 200 OR explicit ORDER_COMPLETED
       if (statusCode === 200 || status === "ORDER_COMPLETED" || status === "SUCCESS") {
         return new Response(JSON.stringify({
           code: "000",
-          response_description: ckData.description || "TRANSACTION SUCCESSFUL",
+          response_description: responseRemark || "TRANSACTION SUCCESSFUL",
           content: {
             transactions: {
               status: "delivered",
               transactionId: orderId,
-              carddetails: ckData.carddetails || ckData.cards || null
+              carddetails: ckData.carddetails || ckData.cards || null,
+              token: ckData.metertoken || ckData.token || null
             }
           }
         }), {
@@ -377,14 +384,21 @@ serve(async (req) => {
         });
       }
       
-      // B: Pending check
-      if (statusCode === 201 || statusCode === 100 || statusCode === 300 || status === "ORDER_RECEIVED" || status === "ORDER_PROCESSED") {
+      // B: Explicit failure — ORDER_FAILED, ORDER_CANCELLED, or known error statuses
+      const isExplicitFail = status === "ORDER_FAILED" || status === "ORDER_CANCELLED"
+        || status === "INVALID_CREDENTIALS" || status === "MISSING_CREDENTIALS"
+        || status === "INVALID_RECIPIENT" || status === "INVALID_AMOUNT"
+        || status === "INVALID_CUSTOMERID" || status === "INVALID_METERNO"
+        || status === "INVALID_SMARTCARDNO" || status === "INVALID_DATAPLAN"
+        || (statusCode !== null && statusCode >= 400);
+
+      if (isExplicitFail) {
         return new Response(JSON.stringify({
-          code: "099",
-          response_description: ckData.description || "TRANSACTION PENDING",
+          code: rawStatusCode?.toString() || status || "011",
+          response_description: responseRemark || status || "Transaction failed.",
           content: {
             transactions: {
-              status: "pending",
+              status: "failed",
               transactionId: orderId
             }
           }
@@ -394,13 +408,15 @@ serve(async (req) => {
         });
       }
 
-      // C: Failed check
+      // C: Everything else is PENDING (ORDER_RECEIVED, ORDER_PROCESSED, ORDER_ONHOLD, unknown)
+      // This is the safe default — we wait for the callback to confirm final status
       return new Response(JSON.stringify({
-        code: ckData.statusCode?.toString() || ckData.status?.toString() || "011",
-        response_description: ckData.description || ckData.remark || ckData.status?.toString() || "Transaction failed.",
+        code: "099",
+        response_description: responseRemark || "TRANSACTION PENDING — Waiting for operator confirmation.",
         content: {
           transactions: {
-            status: "failed"
+            status: "pending",
+            transactionId: orderId
           }
         }
       }), {
@@ -412,7 +428,7 @@ serve(async (req) => {
     // 5a. Admin: Direct-patch a stuck pending transaction by DB id or vendor_reference
     if (endpoint === 'patch-transaction' && body) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const { transaction_id, vendor_reference, status, subtitle } = body;
+      const { transaction_id, vendor_reference, status, subtitle, new_vendor_reference } = body;
       
       if (!transaction_id && !vendor_reference) {
         return new Response(JSON.stringify({ error: 'Either transaction_id or vendor_reference is required' }), {
@@ -421,11 +437,17 @@ serve(async (req) => {
         });
       }
 
-      let query = supabase.from('transactions').update({
-        ...(status && { status }),
-        ...(subtitle && { subtitle }),
-        ...(vendor_reference && { vendor_reference }),
-      });
+      const updateData: Record<string, any> = {};
+      if (status) updateData.status = status;
+      if (subtitle) updateData.subtitle = subtitle;
+      if (new_vendor_reference) {
+        updateData.vendor_reference = new_vendor_reference;
+      } else if (transaction_id && vendor_reference) {
+        // If updating by ID, they might want to set/update vendor_reference
+        updateData.vendor_reference = vendor_reference;
+      }
+
+      let query = supabase.from('transactions').update(updateData);
       
       if (transaction_id) {
         query = query.eq('id', transaction_id);
@@ -433,7 +455,7 @@ serve(async (req) => {
         query = query.eq('vendor_reference', vendor_reference);
       }
       
-      const { data: updatedRows, error: patchErr } = await query.select('id, profile_id, title, amount, status');
+      const { data: updatedRows, error: patchErr } = await query.select('id, profile_id, title, amount, status, vendor_reference');
       
       if (patchErr) {
         console.error('Patch transaction error:', patchErr);
@@ -446,6 +468,8 @@ serve(async (req) => {
         headers: corsHeaders,
       });
     }
+
+
 
     // 5. Requery transaction status ('requery') via ClubKonnect
 
@@ -462,20 +486,25 @@ serve(async (req) => {
       const qData = await qRes.json();
       console.log(`ClubKonnect Query Response:`, JSON.stringify(qData));
       
-      const status = qData.status?.toString().toUpperCase();
-      // ClubKonnect returns lowercase 'statuscode' (not camelCase 'statusCode')
-      const rawStatusCode = qData.statuscode ?? qData.statusCode ?? qData.StatusCode ?? "400";
-      const statusCode = parseInt(rawStatusCode.toString());
-      const remark = qData.remark || qData.description || "Transaction status query completed.";
+      // ClubKonnect Query API returns 'orderstatus' (not 'status') and lowercase 'statuscode'
+      const status = (qData.orderstatus || qData.status)?.toString().toUpperCase();
+      const rawStatusCode = qData.statuscode ?? qData.statusCode ?? qData.StatusCode;
+      const statusCode = rawStatusCode != null ? parseInt(rawStatusCode.toString()) : null;
+      const remark = qData.orderremark || qData.remark || qData.description || "Transaction status query completed.";
 
+      // Success: ORDER_COMPLETED or statuscode 200
       const isSuccess = status === "ORDER_COMPLETED" || statusCode === 200;
-      const isFailed = status === "ORDER_FAILED" || statusCode === 400;
+      // Explicit failure: ORDER_FAILED, ORDER_CANCELLED, or statuscode >= 400
+      const isFailed = status === "ORDER_FAILED" || status === "ORDER_CANCELLED"
+        || (statusCode !== null && statusCode >= 400);
       
+      // Default: if neither success nor explicit failure, stay PENDING
+      // This prevents incorrectly marking successful transactions as failed
       let finalStatus = "pending";
       if (isSuccess) finalStatus = "success";
       else if (isFailed) finalStatus = "failed";
       
-      console.log(`Parsed: status=${status}, statusCode=${statusCode}, finalStatus=${finalStatus}`);
+      console.log(`Parsed requery: status=${status}, statusCode=${statusCode}, finalStatus=${finalStatus}, remark=${remark}`);
       
       if (finalStatus !== "pending") {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
