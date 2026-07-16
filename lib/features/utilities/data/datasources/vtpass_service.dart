@@ -40,6 +40,7 @@ class VtPassPurchaseResult {
   final String? responseCode;
   final String? status;
   final bool isPending;
+  final String? carddetails;
 
   VtPassPurchaseResult({
     required this.success,
@@ -49,6 +50,7 @@ class VtPassPurchaseResult {
     this.responseCode,
     this.status,
     this.isPending = false,
+    this.carddetails,
   });
 }
 
@@ -70,6 +72,8 @@ class VtPassService {
       return provider; // e.g. "ikeja-electric", "eko-electric", "abuja-electric", etc.
     } else if (serviceType == 'Cable TV') {
       return provider.toLowerCase(); // dstv, gotv, startimes
+    } else if (serviceType == 'Betting' || serviceType == 'WAEC' || serviceType == 'JAMB') {
+      return provider.toLowerCase();
     }
     return provider;
   }
@@ -285,6 +289,7 @@ class VtPassService {
     String? providerName,        // MTN, Airtel, dstv, gotv, or disco codes
     String? packageName,         // Selected package name/desc for Data & TV
     String? variationCode,       // Direct variation code bypass
+    String? phone,               // Optional recipient phone number
   }) async {
     try {
       final serviceID = _mapProviderToServiceId(providerName ?? '', serviceType);
@@ -298,7 +303,7 @@ class VtPassService {
         'serviceID': serviceID,
         'billersCode': target.trim(),
         'amount': amount,
-        'phone': serviceType == 'Airtime' || serviceType == 'Data' ? target.trim() : '08012345678',
+        'phone': phone?.trim() ?? (serviceType == 'Airtime' || serviceType == 'Data' ? target.trim() : '08012345678'),
       };
 
       if (finalVariation != null) {
@@ -324,6 +329,7 @@ class VtPassService {
           final token = content['token'] ?? transaction['token'];
           
           if (status == 'delivered' || status == 'success') {
+            final carddetails = transaction['carddetails']?.toString();
             return VtPassPurchaseResult(
               success: true,
               transactionId: transaction['transactionId']?.toString() ?? 'VTP-${DateTime.now().millisecondsSinceEpoch}',
@@ -331,6 +337,7 @@ class VtPassService {
               responseCode: code,
               status: status,
               isPending: false,
+              carddetails: carddetails,
             );
           } else if (status == 'pending' || status == 'processing') {
             return VtPassPurchaseResult(
@@ -350,8 +357,14 @@ class VtPassService {
             );
           }
         } else if (code == '099') {
+          // PENDING: Extract the transactionId (ClubKonnect Order ID) from the response
+          final content = data['content'] ?? {};
+          final transaction = content['transactions'] ?? {};
+          final pendingOrderId = transaction['transactionId']?.toString();
+          
           return VtPassPurchaseResult(
             success: false,
+            transactionId: pendingOrderId, // ← Critical: pass orderId for requery
             responseCode: code,
             status: 'pending',
             isPending: true,
@@ -359,8 +372,13 @@ class VtPassService {
           );
         } else {
           final mappedError = _mapResponseCodeToMessage(code, data['response_description']);
+          // Also try to extract transactionId from failed responses
+          final content = data['content'] ?? {};
+          final transaction = content['transactions'] ?? {};
+          final failedOrderId = transaction['transactionId']?.toString();
           return VtPassPurchaseResult(
             success: false,
+            transactionId: failedOrderId,
             responseCode: code,
             status: 'failed',
             isPending: false,

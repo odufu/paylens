@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary Lush brand colors
+  // Primary Paylens brand colors
   static const Color primaryForest = Color(
     0xFF004B30,
   ); // Forest Green (#004B30)

@@ -1,4 +1,4 @@
--- SQL Schema Setup for Lush Fintech
+-- SQL Schema Setup for Paylens
 -- This script creates the tables and sets up secure Row Level Security (RLS) policies.
 -- This script is idempotent (safe to run multiple times without causing duplicate policy/trigger errors).
 -- Copy and run this inside your Supabase SQL Editor.
@@ -319,3 +319,44 @@ VALUES
   ('Data', 'Smile', 'ClubKonnect', 0.0100),
   ('Data', 'Spectranet', 'ClubKonnect', 0.0100)
 ON CONFLICT DO NOTHING;
+
+-- 8. Create Budgets Table
+CREATE TABLE IF NOT EXISTS public.budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    amount NUMERIC(15, 2) NOT NULL,
+    service_type TEXT NOT NULL,       -- 'Data', 'Cable TV', 'Electricity', 'Betting', 'WAEC', 'JAMB'
+    provider_name TEXT,               -- e.g. 'MTN', 'DSTV', 'Ikeja Electric', 'BetKing', etc.
+    target TEXT,                      -- e.g. Phone Number, Meter Number, Smartcard ID
+    variation_code TEXT,              -- e.g. 'mtn-data', 'dstv-compact', etc.
+    is_automatic BOOLEAN DEFAULT false NOT NULL,
+    frequency TEXT DEFAULT 'one_time' NOT NULL CHECK (frequency IN ('one_time', 'daily', 'weekly', 'monthly')),
+    next_run_date TIMESTAMPTZ,
+    status TEXT DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'completed', 'cancelled')),
+    subscription_cost NUMERIC(15, 2),
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Alter table to add column if it doesn't exist
+ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS subscription_cost NUMERIC(15, 2);
+
+-- Enable RLS
+ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to manage their own budgets
+DROP POLICY IF EXISTS "Users can view their own budgets" ON public.budgets;
+CREATE POLICY "Users can view their own budgets" ON public.budgets
+    FOR SELECT USING (auth.uid() = profile_id);
+
+DROP POLICY IF EXISTS "Users can create their own budgets" ON public.budgets;
+CREATE POLICY "Users can create their own budgets" ON public.budgets
+    FOR INSERT WITH CHECK (auth.uid() = profile_id);
+
+DROP POLICY IF EXISTS "Users can update their own budgets" ON public.budgets;
+CREATE POLICY "Users can update their own budgets" ON public.budgets
+    FOR UPDATE USING (auth.uid() = profile_id);
+
+DROP POLICY IF EXISTS "Users can delete their own budgets" ON public.budgets;
+CREATE POLICY "Users can delete their own budgets" ON public.budgets
+    FOR DELETE USING (auth.uid() = profile_id);

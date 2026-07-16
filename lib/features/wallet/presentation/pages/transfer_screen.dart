@@ -244,6 +244,16 @@ class _TransferScreenState extends State<TransferScreen> {
                     // Bank Name Dropdown
                     DropdownButtonFormField<String>(
                       value: _selectedBank,
+                      dropdownColor: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF1B2420)
+                          : Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFF0F4F2)
+                            : const Color(0xFF1A1A1A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Select Destination Bank',
                         prefixIcon: Icon(LucideIcons.building),

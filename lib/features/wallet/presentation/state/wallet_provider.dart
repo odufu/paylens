@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/wallet/data/models/beneficiary_model.dart';
 import 'package:mspay/features/wallet/data/datasources/paystack_service.dart';
+import 'package:mspay/features/wallet/data/models/budget_model.dart';
 
 class WalletProvider extends ChangeNotifier {
   final _uuid = const Uuid();
@@ -20,7 +23,10 @@ class WalletProvider extends ChangeNotifier {
   
   List<TransactionModel> _transactions = [];
   List<BeneficiaryModel> _beneficiaries = [];
+  List<BudgetModel> _budgets = [];
   bool _isSyncing = false;
+  RealtimeChannel? _transactionChannel; // Realtime subscription channel
+  Timer? _pendingPollTimer; // Background timer for auto-requerying pending transactions
 
   double _electricityFee = 150.00;
   double _cableFee = 150.00;
@@ -43,7 +49,16 @@ class WalletProvider extends ChangeNotifier {
   double get pointsRate => _pointsRate;
   List<TransactionModel> get transactions => _transactions;
   List<BeneficiaryModel> get beneficiaries => _beneficiaries;
+  List<BudgetModel> get budgets => _budgets;
   bool get isSyncing => _isSyncing;
+
+  double get availableBalance => _balance - lockedBudgetBalance;
+
+  double get lockedBudgetBalance {
+    return _budgets
+        .where((b) => b.status == 'active')
+        .fold(0.0, (sum, item) => sum + item.amount);
+  }
 
   String? get _userId => SupabaseService.client.auth.currentUser?.id;
 
@@ -51,8 +66,75 @@ class WalletProvider extends ChangeNotifier {
     loadState();
     // Listen to Auth Changes to trigger auto-sync
     SupabaseService.client.auth.onAuthStateChange.listen((data) {
+      _unsubscribeRealtime();
       loadState();
     });
+  }
+
+  /// Subscribe to realtime changes on the transactions table for this user
+  void _subscribeToTransactionUpdates() {
+    final uid = _userId;
+    if (uid == null) return;
+
+    _transactionChannel = SupabaseService.client
+        .channel('transactions:$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'transactions',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'profile_id',
+            value: uid,
+          ),
+          callback: (payload) {
+            debugPrint('WalletProvider: Realtime transaction update received: ${payload.newRecord}');
+            // Refresh local state when a transaction is updated
+            _syncWithSupabase();
+          },
+        )
+        .subscribe();
+
+    debugPrint('WalletProvider: Subscribed to realtime transaction updates for user $uid');
+  }
+
+  void _unsubscribeRealtime() {
+    _transactionChannel?.unsubscribe();
+    _transactionChannel = null;
+    _pendingPollTimer?.cancel();
+    _pendingPollTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _unsubscribeRealtime();
+    super.dispose();
+  }
+
+  /// Automatically requery all pending transactions with a vendor_reference every 30s
+  void _startPendingTransactionPoller() {
+    _pendingPollTimer?.cancel();
+    _pendingPollTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      final pendingWithRef = _transactions.where(
+        (tx) => tx.status == TransactionStatus.pending &&
+            tx.vendorReference != null &&
+            tx.vendorReference!.isNotEmpty,
+      ).toList();
+
+      if (pendingWithRef.isEmpty) {
+        // No more pending transactions: stop polling to save resources
+        _pendingPollTimer?.cancel();
+        _pendingPollTimer = null;
+        debugPrint('WalletProvider: No pending transactions; stopped auto-poll.');
+        return;
+      }
+
+      debugPrint('WalletProvider: Auto-polling ${pendingWithRef.length} pending transaction(s)...');
+      for (final tx in pendingWithRef) {
+        await requeryTransaction(tx.vendorReference!);
+      }
+    });
+    debugPrint('WalletProvider: Started pending transaction auto-poll (every 30s).');
   }
 
   /// Toggles visibility of the balance on the dashboard
@@ -71,6 +153,19 @@ class WalletProvider extends ChangeNotifier {
 
     if (_userId != null) {
       await _syncWithSupabase();
+      // Start realtime subscription after first successful sync (if not already)
+      if (_transactionChannel == null) {
+        _subscribeToTransactionUpdates();
+      }
+      // Start auto-poll if there are pending transactions with vendor references
+      final hasPending = _transactions.any(
+        (tx) => tx.status == TransactionStatus.pending &&
+            tx.vendorReference != null &&
+            tx.vendorReference!.isNotEmpty,
+      );
+      if (hasPending && _pendingPollTimer == null) {
+        _startPendingTransactionPoller();
+      }
     } else {
       await _loadLocalState();
     }
@@ -208,6 +303,21 @@ class WalletProvider extends ChangeNotifier {
       }).toList();
     } catch (e) {
       debugPrint('Error syncing beneficiaries from Supabase: $e');
+    }
+
+    // 4. Fetch Budgets
+    try {
+      final budgetData = await SupabaseService.client
+          .from('budgets')
+          .select()
+          .eq('profile_id', uid)
+          .order('created_at', ascending: false);
+
+      _budgets = (budgetData as List).map((row) {
+        return BudgetModel.fromJson(row);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error syncing budgets from Supabase: $e');
     }
   }
 
@@ -689,7 +799,7 @@ class WalletProvider extends ChangeNotifier {
       category: category,
       status: TransactionStatus.success,
       reference: reference,
-      provider: 'VTPass',
+      provider: 'ClubKonnect',
       vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
@@ -760,7 +870,7 @@ class WalletProvider extends ChangeNotifier {
       category: category,
       status: TransactionStatus.failed,
       reference: reference,
-      provider: 'VTPass',
+      provider: 'ClubKonnect',
       vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
@@ -839,13 +949,42 @@ class WalletProvider extends ChangeNotifier {
       category: category,
       status: TransactionStatus.pending,
       reference: reference,
-      provider: 'VTPass',
+      provider: 'ClubKonnect',
       vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
     await _saveLocalState();
     notifyListeners();
     return ticketId;
+  }
+
+  /// Invokes Edge Function to requery a pending transaction status on ClubKonnect
+  Future<Map<String, dynamic>?> requeryTransaction(String vendorReference) async {
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      final response = await SupabaseService.client.functions.invoke(
+        'vtpass',
+        body: {
+          'endpoint': 'requery',
+          'body': {
+            'vendor_reference': vendorReference,
+          },
+        },
+      );
+      
+      _isSyncing = false;
+      if (response.status == 200) {
+        await loadState(); // Refresh local list and balance
+        return response.data as Map<String, dynamic>?;
+      }
+    } catch (e) {
+      debugPrint('Requery transaction failed: $e');
+      _isSyncing = false;
+      notifyListeners();
+    }
+    return null;
   }
 
   // --- LOCAL FALLBACK STATE PERSISTENCE ---
@@ -875,6 +1014,14 @@ class WalletProvider extends ChangeNotifier {
       _beneficiaries = _getDefaultBeneficiaries();
     }
     
+    final budgetString = prefs.getString('budgets_list');
+    if (budgetString != null) {
+      final List decoded = jsonDecode(budgetString);
+      _budgets = decoded.map((e) => BudgetModel.fromJson(e)).toList();
+    } else {
+      _budgets = _getDefaultBudgets();
+    }
+    
     _isBalanceVisible = prefs.getBool('balance_visible') ?? true;
   }
 
@@ -889,6 +1036,9 @@ class WalletProvider extends ChangeNotifier {
     
     final bens = _beneficiaries.map((e) => e.toJson()).toList();
     await prefs.setString('beneficiaries_list', jsonEncode(bens));
+
+    final bgs = _budgets.map((e) => e.toJson()).toList();
+    await prefs.setString('budgets_list', jsonEncode(bgs));
   }
 
   Future<void> _saveLocalPreferences() async {
@@ -909,8 +1059,8 @@ class WalletProvider extends ChangeNotifier {
         date: DateTime(2025, 4, 10, 14, 30),
         category: TransactionCategory.bills,
         status: TransactionStatus.success,
-        reference: 'VTP-100234591',
-        provider: 'VTPass',
+        reference: 'CK-100234591',
+        provider: 'ClubKonnect',
       ),
       TransactionModel(
         id: '2',
@@ -931,8 +1081,8 @@ class WalletProvider extends ChangeNotifier {
         date: DateTime(2025, 4, 8, 18, 45),
         category: TransactionCategory.bills,
         status: TransactionStatus.success,
-        reference: 'VTP-98201482',
-        provider: 'VTPass',
+        reference: 'CK-98201482',
+        provider: 'ClubKonnect',
       ),
     ];
   }
@@ -943,6 +1093,245 @@ class WalletProvider extends ChangeNotifier {
       BeneficiaryModel(id: 'b2', name: 'Chidi Nwosu', accountNumber: '0092837482', bankName: 'GTBank', initials: 'CN'),
       BeneficiaryModel(id: 'b3', name: 'Fatima Musa', accountNumber: '3029182736', bankName: 'Access Bank', initials: 'FM'),
       BeneficiaryModel(id: 'b4', name: 'Adekunle Alao', accountNumber: '1092837461', bankName: 'UBA', initials: 'AA'),
+    ];
+  }
+
+  /// Creates a locked budget for a specific service
+  Future<bool> createBudget({
+    required String title,
+    required double amount,
+    required String serviceType,
+    String? providerName,
+    String? target,
+    String? variationCode,
+    required bool isAutomatic,
+    required String frequency,
+    double? subscriptionCost,
+  }) async {
+    final uid = _userId;
+    
+    _isSyncing = true;
+    notifyListeners();
+
+    final nextRun = isAutomatic
+        ? (frequency == 'daily'
+            ? DateTime.now().add(const Duration(days: 1))
+            : frequency == 'weekly'
+                ? DateTime.now().add(const Duration(days: 7))
+                : DateTime.now().add(const Duration(days: 30)))
+        : null;
+
+    final newBudget = BudgetModel(
+      id: _uuid.v4(),
+      profileId: uid ?? 'mock-uid',
+      title: title,
+      amount: amount,
+      serviceType: serviceType,
+      providerName: providerName,
+      target: target,
+      variationCode: variationCode,
+      isAutomatic: isAutomatic,
+      frequency: frequency,
+      nextRunDate: nextRun,
+      status: 'active',
+      subscriptionCost: subscriptionCost,
+      createdAt: DateTime.now(),
+    );
+
+    if (uid != null) {
+      try {
+        await SupabaseService.client.from('budgets').insert(newBudget.toJson());
+        await _syncWithSupabase();
+        _isSyncing = false;
+        notifyListeners();
+        return true;
+      } catch (e) {
+        debugPrint('Failed to create budget in Supabase: $e. Falling back to local.');
+      }
+    }
+
+    // Local Fallback
+    _budgets.insert(0, newBudget);
+    await _saveLocalState();
+    _isSyncing = false;
+    notifyListeners();
+    return true;
+  }
+
+  /// Cancels or unlocks a budget
+  Future<bool> cancelBudget(String budgetId) async {
+    final uid = _userId;
+    
+    _isSyncing = true;
+    notifyListeners();
+
+    if (uid != null) {
+      try {
+        await SupabaseService.client
+            .from('budgets')
+            .update({'status': 'cancelled'})
+            .eq('id', budgetId)
+            .eq('profile_id', uid);
+        await _syncWithSupabase();
+        _isSyncing = false;
+        notifyListeners();
+        return true;
+      } catch (e) {
+        debugPrint('Failed to cancel budget in Supabase: $e. Falling back to local.');
+      }
+    }
+
+    // Local Fallback
+    final index = _budgets.indexWhere((element) => element.id == budgetId);
+    if (index != -1) {
+      final b = _budgets[index];
+      _budgets[index] = BudgetModel(
+        id: b.id,
+        profileId: b.profileId,
+        title: b.title,
+        amount: b.amount,
+        serviceType: b.serviceType,
+        providerName: b.providerName,
+        target: b.target,
+        variationCode: b.variationCode,
+        isAutomatic: b.isAutomatic,
+        frequency: b.frequency,
+        nextRunDate: b.nextRunDate,
+        status: 'cancelled',
+        createdAt: b.createdAt,
+      );
+      await _saveLocalState();
+    }
+    _isSyncing = false;
+    notifyListeners();
+    return true;
+  }
+
+  /// Completes/spends a budget
+  Future<bool> completeBudget(String budgetId) async {
+    final uid = _userId;
+    
+    if (uid != null) {
+      try {
+        await SupabaseService.client
+            .from('budgets')
+            .update({'status': 'completed'})
+            .eq('id', budgetId)
+            .eq('profile_id', uid);
+        await _syncWithSupabase();
+        notifyListeners();
+        return true;
+      } catch (e) {
+        debugPrint('Failed to complete budget in Supabase: $e. Falling back to local.');
+      }
+    }
+
+    // Local Fallback
+    final index = _budgets.indexWhere((element) => element.id == budgetId);
+    if (index != -1) {
+      final b = _budgets[index];
+      _budgets[index] = BudgetModel(
+        id: b.id,
+        profileId: b.profileId,
+        title: b.title,
+        amount: b.amount,
+        serviceType: b.serviceType,
+        providerName: b.providerName,
+        target: b.target,
+        variationCode: b.variationCode,
+        isAutomatic: b.isAutomatic,
+        frequency: b.frequency,
+        nextRunDate: b.nextRunDate,
+        status: 'completed',
+        createdAt: b.createdAt,
+      );
+      await _saveLocalState();
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Deducts package cost from the budget balance, completing the budget if it runs out
+  Future<bool> deductFromBudget(String budgetId, double deductAmount) async {
+    final uid = _userId;
+    final index = _budgets.indexWhere((b) => b.id == budgetId);
+    if (index == -1) return false;
+    
+    final budget = _budgets[index];
+    final double remaining = budget.amount - deductAmount;
+    final double newAmount = remaining < 0.0 ? 0.0 : remaining;
+    final String newStatus = newAmount <= 0.0 ? 'completed' : 'active';
+
+    if (uid != null) {
+      try {
+        await SupabaseService.client
+            .from('budgets')
+            .update({
+              'amount': newAmount,
+              'status': newStatus,
+            })
+            .eq('id', budgetId)
+            .eq('profile_id', uid);
+        await _syncWithSupabase();
+        notifyListeners();
+        return true;
+      } catch (e) {
+        debugPrint('Failed to deduct from budget in Supabase: $e');
+      }
+    }
+
+    // Local Fallback
+    _budgets[index] = BudgetModel(
+      id: budget.id,
+      profileId: budget.profileId,
+      title: budget.title,
+      amount: newAmount,
+      serviceType: budget.serviceType,
+      providerName: budget.providerName,
+      target: budget.target,
+      variationCode: budget.variationCode,
+      isAutomatic: budget.isAutomatic,
+      frequency: budget.frequency,
+      nextRunDate: budget.nextRunDate,
+      status: newStatus,
+      subscriptionCost: budget.subscriptionCost,
+      createdAt: budget.createdAt,
+    );
+    await _saveLocalState();
+    notifyListeners();
+    return true;
+  }
+
+  List<BudgetModel> _getDefaultBudgets() {
+    return [
+      BudgetModel(
+        id: 'bg-1',
+        profileId: 'mock-uid',
+        title: 'Monthly DSTV Budget',
+        amount: 10500.0,
+        serviceType: 'Cable TV',
+        providerName: 'DSTV',
+        target: '1029384756',
+        variationCode: 'dstv-compact',
+        isAutomatic: true,
+        frequency: 'monthly',
+        nextRunDate: DateTime.now().add(const Duration(days: 12)),
+        status: 'active',
+        createdAt: DateTime.now().subtract(const Duration(days: 18)),
+      ),
+      BudgetModel(
+        id: 'bg-2',
+        profileId: 'mock-uid',
+        title: 'Weekly Betting Reserve',
+        amount: 2000.0,
+        serviceType: 'Betting',
+        providerName: 'BetKing',
+        target: '57025731',
+        isAutomatic: false,
+        frequency: 'weekly',
+        status: 'active',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+      ),
     ];
   }
 }

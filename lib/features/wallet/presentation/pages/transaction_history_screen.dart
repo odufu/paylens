@@ -64,126 +64,220 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header indicator
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Status Badge & Title
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        bool isRequerying = false;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Transaction Details',
-                        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.successGreen.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
+                      // Header indicator
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                        child: const Row(
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Status Badge & Title
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Transaction Details',
+                            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: tx.status == TransactionStatus.success
+                                  ? AppColors.successGreen.withValues(alpha: 0.12)
+                                  : tx.status == TransactionStatus.pending
+                                      ? Colors.orange.withValues(alpha: 0.12)
+                                      : AppColors.errorRed.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 3,
+                                  backgroundColor: tx.status == TransactionStatus.success
+                                      ? AppColors.successGreen
+                                      : tx.status == TransactionStatus.pending
+                                          ? Colors.orange
+                                          : AppColors.errorRed,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  tx.status == TransactionStatus.success
+                                      ? 'Successful'
+                                      : tx.status == TransactionStatus.pending
+                                          ? 'Pending'
+                                          : 'Failed',
+                                  style: TextStyle(
+                                    color: tx.status == TransactionStatus.success
+                                        ? AppColors.successGreen
+                                        : tx.status == TransactionStatus.pending
+                                            ? Colors.orange
+                                            : AppColors.errorRed,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Amount Display
+                      Center(
+                        child: Column(
                           children: [
-                            CircleAvatar(radius: 3, backgroundColor: AppColors.successGreen),
-                            SizedBox(width: 6),
                             Text(
-                              'Successful',
+                              isCredit ? 'Amount Credited' : 'Amount Debited',
+                              style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              (isCredit ? '+' : '-') + CurrencyFormatter.format(tx.amount.abs()),
                               style: TextStyle(
-                                color: AppColors.successGreen,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: isCredit ? AppColors.successGreen : AppColors.errorRed,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Amount Display
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(
-                          isCredit ? 'Amount Credited' : 'Amount Debited',
-                          style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          (isCredit ? '+' : '-') + CurrencyFormatter.format(tx.amount.abs()),
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: isCredit ? AppColors.successGreen : AppColors.errorRed,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Detail list
-                  _buildDetailRow('Description', tx.title),
-                  _buildDetailRow('Detail', tx.subtitle),
-                  _buildDetailRow('Reference ID', tx.reference),
-                  if (tx.vendorReference != null && tx.vendorReference!.isNotEmpty)
-                    _buildDetailRow('Vendor Reference ID', tx.vendorReference!),
-                  _buildDetailRow('Payment Provider', tx.provider),
-                  _buildDetailRow('Date & Time', DateFormat('MMM dd, yyyy • hh:mm a').format(tx.date)),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // CTA: Report Issue
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context); // Close bottom sheet
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ChatbotScreen(
-                                  initialText: 'I want to report an issue with my transaction.',
+                      const SizedBox(height: 24),
+                      
+                      // Detail list
+                      _buildDetailRow('Description', tx.title),
+                      _buildDetailRow('Detail', tx.subtitle),
+                      _buildDetailRow('Reference ID', tx.reference),
+                      if (tx.vendorReference != null && tx.vendorReference!.isNotEmpty)
+                        _buildDetailRow('Vendor Reference ID', tx.vendorReference!),
+                      _buildDetailRow('Payment Provider', tx.provider),
+                      _buildDetailRow('Date & Time', DateFormat('MMM dd, yyyy • hh:mm a').format(tx.date)),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Refresh button (only show for pending transactions with vendor reference)
+                      if (tx.status == TransactionStatus.pending && tx.vendorReference != null && tx.vendorReference!.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: isRequerying
+                                    ? null
+                                    : () async {
+                                        setModalState(() {
+                                          isRequerying = true;
+                                        });
+                                        
+                                        final provider = Provider.of<WalletProvider>(context, listen: false);
+                                        final res = await provider.requeryTransaction(tx.vendorReference!);
+                                        
+                                        if (context.mounted) {
+                                          setModalState(() {
+                                            isRequerying = false;
+                                          });
+                                          
+                                          if (res != null) {
+                                            final newStatus = res['status'] as String;
+                                            final newRemark = res['remark'] as String;
+                                            
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Status updated: ${newStatus.toUpperCase()}. $newRemark'),
+                                                backgroundColor: newStatus == 'success' 
+                                                    ? AppColors.successGreen 
+                                                    : newStatus == 'failed' 
+                                                        ? AppColors.errorRed 
+                                                        : Colors.orange,
+                                              ),
+                                            );
+                                            Navigator.pop(context); // Close sheet to show updated list
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Failed to update status. Please try again later.'),
+                                                backgroundColor: AppColors.errorRed,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                                icon: isRequerying
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Icon(LucideIcons.refreshCw),
+                                label: const Text('Refresh Status'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryForest,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
                               ),
-                            );
-                          },
-                          icon: const Icon(LucideIcons.alertTriangle, color: Colors.orange),
-                          label: const Text('Report Technical Issue', style: TextStyle(color: Colors.orange)),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.orange),
-                          ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // CTA: Report Issue
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context); // Close bottom sheet
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ChatbotScreen(
+                                      initialText: 'I want to report an issue with my transaction.',
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(LucideIcons.alertTriangle, color: Colors.orange),
+                              label: const Text('Report Technical Issue', style: TextStyle(color: Colors.orange)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.orange),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -304,21 +398,33 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
           // TRANSACTION CHRONOLOGICAL LIST
           Expanded(
-            child: filteredTxs.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(LucideIcons.folderOpen, color: Colors.grey.shade400, size: 48),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No transactions found',
-                          style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
+            child: RefreshIndicator(
+              color: AppColors.primaryForest,
+              onRefresh: () => walletProvider.loadState(),
+              child: filteredTxs.isEmpty
+                ? ListView(
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(LucideIcons.folderOpen, color: Colors.grey.shade400, size: 48),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No transactions found',
+                            style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Pull down to refresh',
+                            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
                   )
                 : ListView.builder(
+
                     padding: const EdgeInsets.all(16),
                     itemCount: filteredTxs.length,
                     itemBuilder: (context, index) {
@@ -347,6 +453,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

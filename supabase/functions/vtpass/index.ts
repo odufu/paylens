@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CLUBKONNECT_USER_ID = Deno.env.get("CLUBKONNECT_USER_ID") || "CK101283964";
 const CLUBKONNECT_API_KEY = Deno.env.get("CLUBKONNECT_API_KEY") || "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -15,17 +18,98 @@ serve(async (req) => {
     });
   }
 
+  // CORS Headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Content-Type': 'application/json',
+  };
+
   try {
+    // Check if request is a GET (ClubKonnect Callback)
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      const orderId = url.searchParams.get('orderid');
+      const statusCode = url.searchParams.get('statuscode');
+      const orderStatus = url.searchParams.get('orderstatus');
+      const orderRemark = url.searchParams.get('orderremark');
+
+      console.log(`ClubKonnect Callback Received: Method=GET, URL=${req.url}`);
+
+      if (orderId) {
+        console.log(`Processing callback for orderId=${orderId}, statuscode=${statusCode}, status=${orderStatus}`);
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        
+        // 1. Fetch matching transaction by vendor_reference
+        const { data: tx, error: fetchErr } = await supabase
+          .from('transactions')
+          .select('id, profile_id, title, amount')
+          .eq('vendor_reference', orderId)
+          .maybeSingle();
+
+        if (fetchErr) {
+          console.error(`Database error fetching transaction:`, fetchErr);
+        } else if (tx) {
+          const isSuccess = statusCode === '200' || orderStatus === 'ORDER_COMPLETED';
+          const finalStatus = isSuccess ? 'success' : 'failed';
+          const normalizedRemark = orderRemark ? decodeURIComponent(orderRemark) : '';
+          
+          // 2. Update transaction status and subtitle
+          const { error: updateErr } = await supabase
+            .from('transactions')
+            .update({
+              status: finalStatus,
+              subtitle: normalizedRemark || (isSuccess ? 'Transaction completed successfully.' : 'Transaction failed.'),
+            })
+            .eq('id', tx.id);
+            
+          if (updateErr) {
+            console.error(`Failed to update transaction ${tx.id}:`, updateErr);
+          } else {
+            console.log(`Successfully updated transaction ${tx.id} to ${finalStatus}`);
+          }
+
+          // 3. Update associated support ticket if any
+          const { error: ticketErr } = await supabase
+            .from('support_tickets')
+            .update({
+              status: isSuccess ? 'resolved' : 'escalated',
+              description: `Auto-updated by ClubKonnect callback. Status: ${orderStatus}. Remark: ${normalizedRemark}`,
+            })
+            .eq('transaction_id', tx.id);
+            
+          if (ticketErr) {
+            console.error(`Failed to update support ticket for transaction ${tx.id}:`, ticketErr);
+          }
+
+          // 4. Send notification to user
+          try {
+            await supabase.from('notifications').insert({
+              profile_id: tx.profile_id,
+              title: isSuccess ? 'Payment Successful' : 'Payment Failed',
+              body: `Your payment of ₦${Math.abs(tx.amount)} for ${tx.title} was ${finalStatus}. ${normalizedRemark}`,
+              category: 'transactions',
+              is_read: false
+            });
+            console.log(`Sent status notification to profile ${tx.profile_id}`);
+          } catch (notifErr) {
+            console.error(`Failed to insert notification:`, notifErr);
+          }
+        } else {
+          console.warn(`No transaction found matching vendor_reference=${orderId}`);
+        }
+      }
+
+      return new Response(JSON.stringify({ status: "acknowledged" }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    // Otherwise, parse POST body
     const { endpoint, body, method = "POST" } = await req.json();
 
     console.log(`ClubKonnect Request - Endpoint: ${endpoint}, Method: ${method}`);
-
-    // CORS Headers
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Content-Type': 'application/json',
-    };
 
     // 1. Intercept service-variations to return ClubKonnect Data Catalog dynamically
     if (endpoint.includes('service-variations') && (endpoint.includes('data') || endpoint.includes('direct') || endpoint.includes('sme'))) {
@@ -103,6 +187,26 @@ serve(async (req) => {
         else if (serviceID.includes("gotv")) ckNetwork = "02";
         else if (serviceID.includes("startimes")) ckNetwork = "03";
         ckUrl = `https://www.nellobytesystems.com/APIVerifyCableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&SmartCardNo=${billersCode}`;
+      } else if (
+        serviceID.includes("nairabet") || serviceID.includes("bangbet") || 
+        serviceID.includes("betway") || serviceID.includes("betland") || 
+        serviceID.includes("betking") || serviceID.includes("1xbet") || 
+        serviceID.includes("naijabet") || serviceID.includes("sportybet") || 
+        serviceID.includes("merrybet")
+      ) {
+        let ckBettingCompany = "product-nairabet";
+        if (serviceID.includes("nairabet")) ckBettingCompany = "product-nairabet";
+        else if (serviceID.includes("bangbet") || serviceID.includes("bang-bet")) ckBettingCompany = "product-bang-bet";
+        else if (serviceID.includes("betway") || serviceID.includes("bet-way")) ckBettingCompany = "product-bet-way";
+        else if (serviceID.includes("betland") || serviceID.includes("bet-land")) ckBettingCompany = "product-bet-land";
+        else if (serviceID.includes("betking") || serviceID.includes("bet-king")) ckBettingCompany = "product-bet-king";
+        else if (serviceID.includes("1xbet") || serviceID.includes("1x-bet")) ckBettingCompany = "product-1x-bet";
+        else if (serviceID.includes("naijabet") || serviceID.includes("naija-bet")) ckBettingCompany = "product-naija-bet";
+        else if (serviceID.includes("sportybet") || serviceID.includes("sporty-bet")) ckBettingCompany = "prd-sporty-bet";
+        else if (serviceID.includes("merrybet") || serviceID.includes("merry-bet")) ckBettingCompany = "product-merry-bet";
+        ckUrl = `https://www.nellobytesystems.com/APIVerifyBettingV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&BettingCompany=${ckBettingCompany}&CustomerID=${billersCode}`;
+      } else if (serviceID.includes("jamb")) {
+        ckUrl = `https://www.nellobytesystems.com/APIVerifyJAMBV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ExamType=jamb&ProfileID=${billersCode}`;
       } else {
         // Electricity
         let ckNetwork = "01";
@@ -118,16 +222,19 @@ serve(async (req) => {
         else if (serviceID.includes("benin")) ckNetwork = "10";
         else if (serviceID.includes("yola")) ckNetwork = "11";
         else if (serviceID.includes("aba")) ckNetwork = "12";
-        ckUrl = `https://www.nellobytesystems.com/APIVerifyElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterNo=${billersCode}`;
+        
+        const meterType = (body.type?.toString().toLowerCase() === "postpaid") ? "02" : "01";
+        ckUrl = `https://www.nellobytesystems.com/APIVerifyElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterNo=${billersCode}&MeterType=${meterType}`;
       }
 
       console.log(`Verifying merchant ID via ClubKonnect: ${ckUrl.replace(CLUBKONNECT_API_KEY, "HIDDEN_KEY")}`);
       const ckRes = await fetch(ckUrl);
       const ckData = await ckRes.json();
 
-      const customerName = ckData.customername || ckData.CustomerName || "Verified Subscriber";
+      const customerName = ckData.customername || ckData.CustomerName || ckData.customer_name || "Verified Subscriber";
+      const isInvalid = customerName.toLowerCase().includes("error") || customerName.toLowerCase().includes("invalid");
 
-      if (ckData.status?.toString().toUpperCase() === "SUCCESS" || customerName) {
+      if ((ckData.status?.toString().toUpperCase() === "SUCCESS" || customerName) && !isInvalid) {
         return new Response(JSON.stringify({
           code: "000",
           response_description: "SUCCESSFUL",
@@ -162,10 +269,36 @@ serve(async (req) => {
         serviceType = "Cable TV";
       } else if (serviceID.includes("electric")) {
         serviceType = "Electricity";
+      } else if (
+        serviceID.includes("nairabet") || serviceID.includes("bangbet") || 
+        serviceID.includes("betway") || serviceID.includes("betland") || 
+        serviceID.includes("betking") || serviceID.includes("1xbet") || 
+        serviceID.includes("naijabet") || serviceID.includes("sportybet") || 
+        serviceID.includes("merrybet")
+      ) {
+        serviceType = "Betting";
+      } else if (serviceID.includes("waec")) {
+        serviceType = "WAEC";
+      } else if (serviceID.includes("jamb")) {
+        serviceType = "JAMB";
       }
 
       // Map serviceID/disco/cable provider to ClubKonnect code format
       let ckNetwork = "01"; // MTN Default
+      let ckBettingCompany = "product-nairabet";
+
+      if (serviceType === 'Betting') {
+        if (serviceID.includes("nairabet")) ckBettingCompany = "product-nairabet";
+        else if (serviceID.includes("bangbet") || serviceID.includes("bang-bet")) ckBettingCompany = "product-bang-bet";
+        else if (serviceID.includes("betway") || serviceID.includes("bet-way")) ckBettingCompany = "product-bet-way";
+        else if (serviceID.includes("betland") || serviceID.includes("bet-land")) ckBettingCompany = "product-bet-land";
+        else if (serviceID.includes("betking") || serviceID.includes("bet-king")) ckBettingCompany = "product-bet-king";
+        else if (serviceID.includes("1xbet") || serviceID.includes("1x-bet")) ckBettingCompany = "product-1x-bet";
+        else if (serviceID.includes("naijabet") || serviceID.includes("naija-bet")) ckBettingCompany = "product-naija-bet";
+        else if (serviceID.includes("sportybet") || serviceID.includes("sporty-bet")) ckBettingCompany = "prd-sporty-bet";
+        else if (serviceID.includes("merrybet") || serviceID.includes("merry-bet")) ckBettingCompany = "product-merry-bet";
+      }
+
       if (serviceType === 'Airtime' || serviceType === 'Data') {
         if (serviceID.includes("mtn")) ckNetwork = "01";
         else if (serviceID.includes("glo")) ckNetwork = "02";
@@ -192,15 +325,24 @@ serve(async (req) => {
 
       let ckUrl = "";
       const requestId = body.request_id || `CK-${Date.now()}`;
+      const CALLBACK_URL = "https://vacyxnehxpqvwtaimkgc.supabase.co/functions/v1/vtpass";
+      const encodedCallback = encodeURIComponent(CALLBACK_URL);
 
       if (serviceType === 'Airtime') {
-        ckUrl = `https://www.nellobytesystems.com/APIAirtimeV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&Amount=${body.amount}&MobileNo=${body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIAirtimeV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&Amount=${body.amount}&MobileNumber=${body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
       } else if (serviceType === 'Data') {
-        ckUrl = `https://www.nellobytesystems.com/APIDatabundleV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNumber=${body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APIDatabundleV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&MobileNetwork=${ckNetwork}&DataPlan=${body.variation_code}&MobileNumber=${body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
       } else if (serviceType === 'Cable TV') {
-        ckUrl = `https://www.nellobytesystems.com/APICableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&Package=${body.variation_code}&SmartCardNo=${body.billersCode}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
+        ckUrl = `https://www.nellobytesystems.com/APICableTVV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&CableTV=${ckNetwork}&Package=${body.variation_code}&SmartCardNo=${body.billersCode}&PhoneNo=${body.phone || body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
       } else if (serviceType === 'Electricity') {
-        ckUrl = `https://www.nellobytesystems.com/APIElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterNo=${body.billersCode}&Amount=${body.amount}&MobileNo=${body.phone || body.billersCode}&RequestID=${requestId}`;
+        const meterType = (body.variation_code === 'postpaid' || body.type === 'postpaid') ? '02' : '01';
+        ckUrl = `https://www.nellobytesystems.com/APIElectricityV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ElectricCompany=${ckNetwork}&MeterType=${meterType}&MeterNo=${body.billersCode}&Amount=${body.amount}&PhoneNo=${body.phone || body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
+      } else if (serviceType === 'Betting') {
+        ckUrl = `https://www.nellobytesystems.com/APIBettingV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&BettingCompany=${ckBettingCompany}&CustomerID=${body.billersCode}&Amount=${body.amount}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
+      } else if (serviceType === 'WAEC') {
+        ckUrl = `https://www.nellobytesystems.com/APIWAECV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ExamType=${body.variation_code}&PhoneNo=${body.phone || body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
+      } else if (serviceType === 'JAMB') {
+        ckUrl = `https://www.nellobytesystems.com/APIJAMBV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&ExamType=${body.variation_code}&PhoneNo=${body.phone || body.billersCode}&RequestID=${requestId}&CallBackURL=${encodedCallback}`;
       }
 
       console.log(`Submitting purchase to ClubKonnect: ${ckUrl.replace(CLUBKONNECT_API_KEY, "HIDDEN_KEY")}`);
@@ -225,7 +367,8 @@ serve(async (req) => {
           content: {
             transactions: {
               status: "delivered",
-              transactionId: orderId
+              transactionId: orderId,
+              carddetails: ckData.carddetails || ckData.cards || null
             }
           }
         }), {
@@ -260,6 +403,154 @@ serve(async (req) => {
             status: "failed"
           }
         }
+      }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    // 5a. Admin: Direct-patch a stuck pending transaction by DB id or vendor_reference
+    if (endpoint === 'patch-transaction' && body) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { transaction_id, vendor_reference, status, subtitle } = body;
+      
+      if (!transaction_id && !vendor_reference) {
+        return new Response(JSON.stringify({ error: 'Either transaction_id or vendor_reference is required' }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      let query = supabase.from('transactions').update({
+        ...(status && { status }),
+        ...(subtitle && { subtitle }),
+        ...(vendor_reference && { vendor_reference }),
+      });
+      
+      if (transaction_id) {
+        query = query.eq('id', transaction_id);
+      } else {
+        query = query.eq('vendor_reference', vendor_reference);
+      }
+      
+      const { data: updatedRows, error: patchErr } = await query.select('id, profile_id, title, amount, status');
+      
+      if (patchErr) {
+        console.error('Patch transaction error:', patchErr);
+        return new Response(JSON.stringify({ error: patchErr.message }), { status: 500, headers: corsHeaders });
+      }
+      
+      console.log(`Patched transaction(s):`, JSON.stringify(updatedRows));
+      return new Response(JSON.stringify({ success: true, updated: updatedRows }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    // 5. Requery transaction status ('requery') via ClubKonnect
+
+    if (endpoint === 'requery' && body && body.vendor_reference) {
+      const vendorReference = body.vendor_reference.toString();
+      const queryUrl = `https://www.nellobytesystems.com/APIQueryV1.asp?UserID=${CLUBKONNECT_USER_ID}&APIKey=${CLUBKONNECT_API_KEY}&OrderID=${vendorReference}`;
+      console.log(`Requerying transaction status for: ${vendorReference}`);
+      
+      const qRes = await fetch(queryUrl);
+      if (!qRes.ok) {
+        throw new Error(`ClubKonnect status query returned HTTP status ${qRes.status}`);
+      }
+      
+      const qData = await qRes.json();
+      console.log(`ClubKonnect Query Response:`, JSON.stringify(qData));
+      
+      const status = qData.status?.toString().toUpperCase();
+      // ClubKonnect returns lowercase 'statuscode' (not camelCase 'statusCode')
+      const rawStatusCode = qData.statuscode ?? qData.statusCode ?? qData.StatusCode ?? "400";
+      const statusCode = parseInt(rawStatusCode.toString());
+      const remark = qData.remark || qData.description || "Transaction status query completed.";
+
+      const isSuccess = status === "ORDER_COMPLETED" || statusCode === 200;
+      const isFailed = status === "ORDER_FAILED" || statusCode === 400;
+      
+      let finalStatus = "pending";
+      if (isSuccess) finalStatus = "success";
+      else if (isFailed) finalStatus = "failed";
+      
+      console.log(`Parsed: status=${status}, statusCode=${statusCode}, finalStatus=${finalStatus}`);
+      
+      if (finalStatus !== "pending") {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        
+        // Update transaction table - first try by vendor_reference
+        let { data: tx, error: updateErr } = await supabase
+          .from('transactions')
+          .update({
+            status: finalStatus,
+            subtitle: remark,
+            vendor_reference: vendorReference, // Ensure vendor_reference is always set
+          })
+          .eq('vendor_reference', vendorReference)
+          .select('id, profile_id, title, amount')
+          .maybeSingle();
+          
+        if (updateErr) {
+          console.error(`Requery database update failed:`, updateErr);
+        }
+        
+        // If no row was updated (vendor_reference was null), also try updating subtitles with matching pending transactions
+        if (!tx) {
+          console.warn(`No transaction found with vendor_reference=${vendorReference}. Trying to find by pending status and orderid from ClubKonnect...`);
+          // Try to find and fix the transaction that has this vendor reference but stored as null
+          // ClubKonnect orderId may be in the subtitle or we can match by the ClubKonnect orderid
+          const ckOrderId = qData.orderid || qData.OrderID || qData.orderID;
+          if (ckOrderId) {
+            const { data: txByRef, error: fixErr } = await supabase
+              .from('transactions')
+              .update({
+                status: finalStatus,
+                subtitle: remark,
+                vendor_reference: vendorReference,
+              })
+              .eq('vendor_reference', ckOrderId)
+              .select('id, profile_id, title, amount')
+              .maybeSingle();
+              
+            if (!fixErr && txByRef) {
+              tx = txByRef;
+              console.log(`Fixed transaction ${tx.id} using ckOrderId=${ckOrderId}`);
+            }
+          }
+        }
+
+
+        if (tx) {
+          // Update support ticket
+          await supabase
+            .from('support_tickets')
+            .update({
+              status: isSuccess ? 'resolved' : 'escalated',
+              description: `Auto-updated by manual requery. Status: ${status}. Remark: ${remark}`,
+            })
+            .eq('transaction_id', tx.id);
+            
+          // Add notification
+          try {
+            await supabase.from('notifications').insert({
+              profile_id: tx.profile_id,
+              title: isSuccess ? 'Payment Successful' : 'Payment Failed',
+              body: `Your payment of ₦${Math.abs(tx.amount)} for ${tx.title} was ${finalStatus}. ${remark}`,
+              category: 'transactions',
+              is_read: false
+            });
+            console.log(`Sent notification for manually request-queried transaction: ${tx.id}`);
+          } catch (e) {
+            console.error('Failed to insert notification:', e);
+          }
+        }
+      }
+      
+      return new Response(JSON.stringify({
+        status: finalStatus,
+        remark: remark
       }), {
         status: 200,
         headers: corsHeaders,

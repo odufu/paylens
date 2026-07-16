@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/features/dashboard/presentation/pages/dashboard_screen.dart';
 import 'package:mspay/features/wallet/presentation/pages/fund_wallet_screen.dart';
+import 'package:mspay/features/wallet/presentation/pages/budget_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/airtime_data_screen.dart';
 import 'package:mspay/features/wallet/presentation/pages/transaction_history_screen.dart';
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
@@ -26,7 +27,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
     super.initState();
     _pages = [
       const DashboardScreen(),
-      const AirtimeDataScreen(isData: false), // Airtime & Data tab
+      const BudgetScreen(), // Budgeting tab
       const FundWalletScreen(), // Center tab displays Fund Wallet
       const TransactionHistoryScreen(), // Services/History tab (using History for detail here)
       const ProfileScreen(),            // Profile Screen
@@ -83,7 +84,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, LucideIcons.home, 'Home'),
-                _buildNavItem(1, LucideIcons.smartphone, 'Airtime'),
+                _buildNavItem(1, LucideIcons.lock, 'Budgeting'),
                 _buildCenterFundButton(),
                 _buildNavItem(3, LucideIcons.history, 'History'),
                 _buildNavItem(4, LucideIcons.user, 'Profile'),

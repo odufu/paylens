@@ -194,9 +194,11 @@ class ReceiptModal extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          const Text(
-                            'TOKEN GENERATED',
-                            style: TextStyle(
+                          Text(
+                            (serviceTitle.toLowerCase().contains('waec') || serviceTitle.toLowerCase().contains('jamb') || serviceTitle.toLowerCase().contains('pin'))
+                                ? 'e-PIN / CARD DETAILS'
+                                : 'TOKEN GENERATED',
+                            style: const TextStyle(
                               color: AppColors.primaryForest,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

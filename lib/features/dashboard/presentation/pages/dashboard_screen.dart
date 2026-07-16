@@ -9,9 +9,13 @@ import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/wallet/presentation/pages/fund_wallet_screen.dart';
 import 'package:mspay/features/wallet/presentation/pages/transfer_screen.dart';
 import 'package:mspay/features/wallet/presentation/pages/transaction_history_screen.dart';
+import 'package:mspay/features/wallet/presentation/pages/budget_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/airtime_data_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/electricity_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/cable_tv_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/betting_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/waec_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/jamb_screen.dart';
 import 'package:mspay/features/dashboard/presentation/pages/main_navigation_holder.dart';
 import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
 import 'package:mspay/features/utilities/presentation/pages/airtime_to_cash_screen.dart';
@@ -519,6 +523,49 @@ class DashboardScreen extends StatelessWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      _buildCircularActionItem(
+                                        context,
+                                        icon: LucideIcons.lock,
+                                        label: 'Budgeting',
+                                        color: AppColors.primaryForest,
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const BudgetScreen(),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: -4,
+                                        right: 2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.accentLime,
+                                            borderRadius: BorderRadius.circular(6),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.accentLime.withValues(alpha: 0.6),
+                                                blurRadius: 6,
+                                                spreadRadius: 1,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Text(
+                                            'NEW',
+                                            style: TextStyle(
+                                              fontSize: 7,
+                                              fontWeight: FontWeight.w900,
+                                              color: AppColors.primaryForest,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   _buildCircularActionItem(
                                     context,
                                     icon: LucideIcons.smartphone,
@@ -554,6 +601,12 @@ class DashboardScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
                                   _buildCircularActionItem(
                                     context,
                                     icon: LucideIcons.tv,
@@ -562,6 +615,39 @@ class DashboardScreen extends StatelessWidget {
                                     onTap: () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => const CableTvScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                  _buildCircularActionItem(
+                                    context,
+                                    icon: LucideIcons.gamepad2,
+                                    label: 'Betting',
+                                    color: const Color(0xFF9C27B0),
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const BettingScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                  _buildCircularActionItem(
+                                    context,
+                                    icon: LucideIcons.graduationCap,
+                                    label: 'WAEC',
+                                    color: const Color(0xFF009688),
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const WaecScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                  _buildCircularActionItem(
+                                    context,
+                                    icon: LucideIcons.award,
+                                    label: 'JAMB',
+                                    color: const Color(0xFFFF5722),
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const JambScreen(),
                                       ),
                                     ),
                                   ),

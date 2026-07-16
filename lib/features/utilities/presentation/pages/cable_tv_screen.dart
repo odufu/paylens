@@ -167,8 +167,8 @@ class _CableTvScreenState extends State<CableTvScreen> {
               serviceTitle: '$_selectedProvider Subscription',
               recipient: '$_verifiedCustomerName (${_smartcardController.text})',
               amount: totalDebit,
-              transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
-              providerName: 'VTPass',
+              transactionId: purchaseResult.transactionId ?? 'CK-UNKNOWN',
+              providerName: 'ClubKonnect',
             );
           }
         }
@@ -384,6 +384,16 @@ class _CableTvScreenState extends State<CableTvScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<Map<String, dynamic>>(
                   value: _selectedPackage,
+                  dropdownColor: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1B2420)
+                      : Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFF0F4F2)
+                        : const Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Select Subscription Plan',
                     prefixIcon: Icon(LucideIcons.tv),

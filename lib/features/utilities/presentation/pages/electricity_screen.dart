@@ -186,9 +186,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               serviceTitle: 'Electricity Bill ($_selectedDisco)',
               recipient: '$_verifiedCustomerName (${_meterController.text})',
               amount: totalDebit,
-              transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
+              transactionId: purchaseResult.transactionId ?? 'CK-UNKNOWN',
               token: purchaseResult.token,
-              providerName: 'VTPass',
+              providerName: 'ClubKonnect',
             );
           }
         }
@@ -276,6 +276,16 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               // Disco Select dropdown
               DropdownButtonFormField<String>(
                 value: _selectedDisco,
+                dropdownColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1B2420)
+                    : Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFF0F4F2)
+                      : const Color(0xFF1A1A1A),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Select Disco Provider',
                   prefixIcon: Icon(LucideIcons.zap),

@@ -216,6 +216,20 @@ class AppTheme {
         elevation: 2,
         shape: CircleBorder(),
       ),
+      
+      // Dropdown / Popup Menu Theme — ensures items are readable in dark mode
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: const TextStyle(color: darkTextPrimary),
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(const Color(0xFF1B2420)),
+          surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
+        ),
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: Color(0xFF1B2420),
+        textStyle: TextStyle(color: darkTextPrimary),
+        labelTextStyle: WidgetStatePropertyAll(TextStyle(color: darkTextPrimary)),
+      ),
     );
   }
 }
