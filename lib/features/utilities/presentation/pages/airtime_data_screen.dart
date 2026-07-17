@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mspay/core/presentation/widgets/transaction_security_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
@@ -129,6 +130,19 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 
   List<Map<String, dynamic>> _getFilteredPackages() {
     final provider = _selectedProvider.toLowerCase();
+    final rawList = _getRawFilteredPackages(provider);
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    return rawList.map((pack) {
+      final double basePrice = pack['amount'] as double;
+      return {
+        ...pack,
+        'amount': walletProvider.getDataPrice(basePrice),
+        'baseAmount': basePrice,
+      };
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _getRawFilteredPackages(String provider) {
 
     if (_liveVariations != null) {
       final List<Map<String, dynamic>> filtered = [];
@@ -760,13 +774,21 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       _fetchLiveVariations();
     }
     _phoneController.addListener(_onPhoneChanged);
+    _amountController.addListener(_onAmountChanged);
     _loadRecentNumbers();
+  }
+
+  void _onAmountChanged() {
+    if (mounted && !_isDataTab) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
     _phoneController.dispose();
+    _amountController.removeListener(_onAmountChanged);
     _amountController.dispose();
     super.dispose();
   }
@@ -884,9 +906,12 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   Future<void> _processPayment(WalletProvider walletProvider) async {
     if (!_formKey.currentState!.validate()) return;
 
+    final double baseAmount = _isDataTab
+        ? (_selectedDataPackage!['baseAmount'] as num).toDouble()
+        : double.parse(_amountController.text.trim());
     final double amount = _isDataTab
         ? _selectedDataPackage!['amount']
-        : double.parse(_amountController.text.trim());
+        : walletProvider.getAirtimePrice(baseAmount);
 
     if (amount > walletProvider.balance) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -894,6 +919,14 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       );
       return;
     }
+
+    final authorized = await TransactionSecurityGate.authorize(
+      context,
+      reason: _isDataTab
+          ? 'Authorize data subscription of ₦$amount to ${_phoneController.text.trim()}'
+          : 'Authorize airtime purchase of ₦$amount to ${_phoneController.text.trim()}',
+    );
+    if (!authorized) return;
 
     setState(() {
       _isProcessing = true;
@@ -915,7 +948,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: _isDataTab ? 'Data' : 'Airtime',
       target: formattedPhone,
-      amount: amount,
+      amount: baseAmount, // VTPass gets the base amount!
       providerName: _selectedProvider,
       packageName: _isDataTab ? _selectedDataPackage!['name'] : null,
       variationCode: _isDataTab ? _selectedDataPackage!['variation'] : null,
@@ -1500,28 +1533,33 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          pack['name'],
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: itemTextColor,
-                                            fontSize: 14,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            pack['name'],
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: itemTextColor,
+                                              fontSize: 14,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          pack['duration'] ?? '30 Days',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.textGrey,
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            pack['duration'] ?? '30 Days',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.textGrey,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 16),
                                     Text(
                                       CurrencyFormatter.format(pack['amount']),
                                       style: TextStyle(
@@ -1590,7 +1628,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                             Text(
                               _isDataTab
                                   ? 'Buy Bundle (${CurrencyFormatter.format(_selectedDataPackage?["amount"] ?? 0)})'
-                                  : 'Pay Airtime',
+                                  : 'Pay Airtime (${CurrencyFormatter.format(walletProvider.getAirtimePrice(double.tryParse(_amountController.text.trim()) ?? 0.0))})',
                             ),
                           ],
                         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mspay/core/presentation/widgets/transaction_security_gate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
@@ -134,7 +135,8 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
       return;
     }
 
-    final double amount = double.parse(_amountController.text.trim());
+    final double baseAmount = double.parse(_amountController.text.trim());
+    final double amount = walletProvider.getElectricityPrice(baseAmount);
     final fee = walletProvider.electricityFee;
     final totalDebit = amount + fee;
 
@@ -145,6 +147,12 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
       return;
     }
 
+    final authorized = await TransactionSecurityGate.authorize(
+      context,
+      reason: 'Authorize electricity payment of ₦$totalDebit for meter ${_meterController.text.trim()}',
+    );
+    if (!authorized) return;
+
     setState(() {
       _isPaying = true;
     });
@@ -153,7 +161,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: 'Electricity',
       target: _meterController.text.trim(),
-      amount: amount,
+      amount: baseAmount, // Base amount sent to VtPass!
       providerName: _discoCode,
     );
 
@@ -439,8 +447,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               if (_isVerified && _amountController.text.trim().isNotEmpty) ...[
                 Builder(
                   builder: (context) {
-                    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-                    if (amount > 0) {
+                    final baseAmount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+                    if (baseAmount > 0) {
+                      final amount = walletProvider.getElectricityPrice(baseAmount);
                       final fee = walletProvider.electricityFee;
                       final total = amount + fee;
                       final earnedPoints = (amount * walletProvider.pointsRate).toInt();

@@ -11,5 +11,5 @@ class ApiConstants {
   );
 
   static const String paystackPublicKey =
-      'pk_test_0ac140673685b32b2e9613b548991cd9563e917a';
+      'pk_live_132e32fb653261fe2c954cc8118178afb2d3cc53';
 }

@@ -90,7 +90,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: SingleChildScrollView(
         child: Column(
           children: [
             // Top Section (Profile Card / Avatar)
@@ -318,6 +321,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 48),
           ],
+        ),
+      ),
         ),
       ),
     );

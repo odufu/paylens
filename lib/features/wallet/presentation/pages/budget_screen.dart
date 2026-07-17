@@ -139,7 +139,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: CustomScrollView(
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
@@ -420,6 +423,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ]
         ],
+      ),
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mspay/core/presentation/widgets/transaction_security_gate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
@@ -114,7 +115,8 @@ class _CableTvScreenState extends State<CableTvScreen> {
       return;
     }
 
-    final double amount = _selectedPackage!['amount'];
+    final double baseAmount = _selectedPackage!['amount'];
+    final double amount = walletProvider.getCablePrice(baseAmount);
     final fee = walletProvider.cableFee;
     final totalDebit = amount + fee;
 
@@ -125,6 +127,12 @@ class _CableTvScreenState extends State<CableTvScreen> {
       return;
     }
 
+    final authorized = await TransactionSecurityGate.authorize(
+      context,
+      reason: 'Authorize $_selectedProvider subscription of ₦$totalDebit for smartcard ${_smartcardController.text.trim()}',
+    );
+    if (!authorized) return;
+
     setState(() {
       _isPaying = true;
     });
@@ -133,7 +141,7 @@ class _CableTvScreenState extends State<CableTvScreen> {
     final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: 'Cable TV',
       target: _smartcardController.text.trim(),
-      amount: amount,
+      amount: baseAmount, // Base amount sent to VtPass!
       providerName: _selectedProvider,
       packageName: _selectedPackage!['name'],
     );
@@ -399,9 +407,10 @@ class _CableTvScreenState extends State<CableTvScreen> {
                     prefixIcon: Icon(LucideIcons.tv),
                   ),
                   items: _providerPackages[_selectedProvider]!.map((pack) {
+                    final double markedUpPrice = walletProvider.getCablePrice(pack['amount'] as double);
                     return DropdownMenuItem<Map<String, dynamic>>(
                       value: pack,
-                      child: Text('${pack['name']} - ${CurrencyFormatter.format(pack['amount'])}'),
+                      child: Text('${pack['name']} - ₦${CurrencyFormatter.format(markedUpPrice)}'),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -418,7 +427,8 @@ class _CableTvScreenState extends State<CableTvScreen> {
                 if (_isVerified && _selectedPackage != null) ...[
                   Builder(
                     builder: (context) {
-                      final amount = _selectedPackage!['amount'];
+                      final baseAmount = _selectedPackage!['amount'] as double;
+                      final amount = walletProvider.getCablePrice(baseAmount);
                       final fee = walletProvider.cableFee;
                       final total = amount + fee;
                       final earnedPoints = (amount * walletProvider.pointsRate).toInt();

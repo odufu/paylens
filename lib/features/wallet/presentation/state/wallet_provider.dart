@@ -27,11 +27,21 @@ class WalletProvider extends ChangeNotifier {
   bool _isSyncing = false;
   RealtimeChannel? _transactionChannel; // Realtime subscription channel
   Timer? _pendingPollTimer; // Background timer for auto-requerying pending transactions
+  List<Map<String, dynamic>> _marketingBanners = [];
 
   double _electricityFee = 150.00;
   double _cableFee = 150.00;
   double _transferFee = 25.00;
   double _pointsRate = 0.01;
+
+  double _airtimeMarkupPercent = 0.0;
+  double _airtimeMarkupFlat = 0.0;
+  double _dataMarkupPercent = 0.0;
+  double _dataMarkupFlat = 0.0;
+  double _cableMarkupPercent = 0.0;
+  double _cableMarkupFlat = 0.0;
+  double _electricityMarkupPercent = 0.0;
+  double _electricityMarkupFlat = 0.0;
 
   // Getters
   double get balance => _balance;
@@ -47,10 +57,26 @@ class WalletProvider extends ChangeNotifier {
   double get cableFee => _cableFee;
   double get transferFee => _transferFee;
   double get pointsRate => _pointsRate;
+
+  double get airtimeMarkupPercent => _airtimeMarkupPercent;
+  double get airtimeMarkupFlat => _airtimeMarkupFlat;
+  double get dataMarkupPercent => _dataMarkupPercent;
+  double get dataMarkupFlat => _dataMarkupFlat;
+  double get cableMarkupPercent => _cableMarkupPercent;
+  double get cableMarkupFlat => _cableMarkupFlat;
+  double get electricityMarkupPercent => _electricityMarkupPercent;
+  double get electricityMarkupFlat => _electricityMarkupFlat;
+
+  // Convenience price calculation helpers
+  double getAirtimePrice(double basePrice) => basePrice * (1 + _airtimeMarkupPercent / 100) + _airtimeMarkupFlat;
+  double getDataPrice(double basePrice) => basePrice * (1 + _dataMarkupPercent / 100) + _dataMarkupFlat;
+  double getCablePrice(double basePrice) => basePrice * (1 + _cableMarkupPercent / 100) + _cableMarkupFlat;
+  double getElectricityPrice(double basePrice) => basePrice * (1 + _electricityMarkupPercent / 100) + _electricityMarkupFlat;
   List<TransactionModel> get transactions => _transactions;
   List<BeneficiaryModel> get beneficiaries => _beneficiaries;
   List<BudgetModel> get budgets => _budgets;
   bool get isSyncing => _isSyncing;
+  List<Map<String, dynamic>> get marketingBanners => _marketingBanners;
 
   double get availableBalance => _balance - lockedBudgetBalance;
 
@@ -150,6 +176,7 @@ class WalletProvider extends ChangeNotifier {
     notifyListeners();
 
     await fetchFeesConfig();
+    await fetchMarketingBanners();
 
     if (_userId != null) {
       await _syncWithSupabase();
@@ -188,6 +215,15 @@ class WalletProvider extends ChangeNotifier {
         _cableFee = (config['cable_fee'] as num).toDouble();
         _transferFee = (config['transfer_fee'] as num).toDouble();
         _pointsRate = (config['points_rate'] as num).toDouble();
+
+        _airtimeMarkupPercent = (config['airtime_markup_percent'] as num? ?? 0.0).toDouble();
+        _airtimeMarkupFlat = (config['airtime_markup_flat'] as num? ?? 0.0).toDouble();
+        _dataMarkupPercent = (config['data_markup_percent'] as num? ?? 0.0).toDouble();
+        _dataMarkupFlat = (config['data_markup_flat'] as num? ?? 0.0).toDouble();
+        _cableMarkupPercent = (config['cable_markup_percent'] as num? ?? 0.0).toDouble();
+        _cableMarkupFlat = (config['cable_markup_flat'] as num? ?? 0.0).toDouble();
+        _electricityMarkupPercent = (config['electricity_markup_percent'] as num? ?? 0.0).toDouble();
+        _electricityMarkupFlat = (config['electricity_markup_flat'] as num? ?? 0.0).toDouble();
       }
     } catch (e) {
       debugPrint('Failed to fetch fees config: $e. Using default local values.');
@@ -782,6 +818,11 @@ class WalletProvider extends ChangeNotifier {
         }
 
         await _syncWithSupabase();
+        await _checkAndDeductFromMatchingBudget(
+          serviceName: serviceName,
+          billDetails: billDetails,
+          amount: amount,
+        );
         return true;
       } catch (e) {
         debugPrint('Supabase payBill failed: $e. Falling back to local.');
@@ -803,6 +844,11 @@ class WalletProvider extends ChangeNotifier {
       vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
+    await _checkAndDeductFromMatchingBudget(
+      serviceName: serviceName,
+      billDetails: billDetails,
+      amount: amount,
+    );
     await _saveLocalState();
     notifyListeners();
     return true;
@@ -932,6 +978,11 @@ class WalletProvider extends ChangeNotifier {
         });
 
         await _syncWithSupabase();
+        await _checkAndDeductFromMatchingBudget(
+          serviceName: serviceName,
+          billDetails: billDetails,
+          amount: amount,
+        );
         return ticketId;
       } catch (e) {
         debugPrint('Failed to log pending transaction in Supabase: $e');
@@ -953,6 +1004,11 @@ class WalletProvider extends ChangeNotifier {
       vendorReference: vendorReference,
     );
     _transactions.insert(0, tx);
+    await _checkAndDeductFromMatchingBudget(
+      serviceName: serviceName,
+      billDetails: billDetails,
+      amount: amount,
+    );
     await _saveLocalState();
     notifyListeners();
     return ticketId;
@@ -985,6 +1041,70 @@ class WalletProvider extends ChangeNotifier {
       notifyListeners();
     }
     return null;
+  }
+
+  /// Fetches marketing banners / slides from the Supabase public.marketing_banners table.
+  /// If it fails (e.g. table not created yet), falls back to default high-quality banner images.
+  Future<void> fetchMarketingBanners() async {
+    try {
+      final response = await SupabaseService.client
+          .from('marketing_banners')
+          .select('*')
+          .order('created_at', ascending: false);
+      
+      _marketingBanners = List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Failed to fetch marketing banners: $e. Using local defaults.');
+      _marketingBanners = [
+        {
+          'id': 'default-1',
+          'image_url': 'https://images.unsplash.com/photo-1616077168712-fc6c788bc4ee?w=800&auto=format&fit=crop&q=60',
+          'title': 'Paylens Budgeting: Lock and Save Automatically!',
+          'action_url': '/budgeting'
+        },
+        {
+          'id': 'default-2',
+          'image_url': 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=60',
+          'title': 'Zero Outbound Transfer Fees - Limitless Transfers!',
+          'action_url': '/transfers'
+        },
+        {
+          'id': 'default-3',
+          'image_url': 'https://images.unsplash.com/photo-1563013544-824ae1d704d3?w=800&auto=format&fit=crop&q=60',
+          'title': 'Earn 1 LensPoint for every N100 spent on Bills!',
+          'action_url': '/loyalty'
+        }
+      ];
+    }
+    notifyListeners();
+  }
+
+  /// Inserts a new marketing banner image into Supabase
+  Future<bool> addMarketingBanner(String imageUrl, String title, String actionUrl) async {
+    try {
+      await SupabaseService.client.from('marketing_banners').insert({
+        'image_url': imageUrl.trim(),
+        'title': title.trim(),
+        'action_url': actionUrl.trim(),
+      });
+      await fetchMarketingBanners();
+      return true;
+    } catch (e) {
+      debugPrint('Failed to insert marketing banner: $e');
+      return false;
+    }
+  }
+
+  /// Deletes a marketing banner image from Supabase by ID
+  Future<bool> deleteMarketingBanner(String id) async {
+    try {
+      await SupabaseService.client.from('marketing_banners').delete().eq('id', id);
+      await fetchMarketingBanners();
+      return true;
+    } catch (e) {
+      debugPrint('Failed to delete marketing banner: $e');
+      return false;
+    }
   }
 
   // --- LOCAL FALLBACK STATE PERSISTENCE ---
@@ -1300,6 +1420,79 @@ class WalletProvider extends ChangeNotifier {
     await _saveLocalState();
     notifyListeners();
     return true;
+  }
+
+  /// Automatically parses details of a successful transaction and checks if there is a matching
+  /// active budget. If a matching budget is found, deducts the cost from the budget's locked pool.
+  Future<void> _checkAndDeductFromMatchingBudget({
+    required String serviceName,
+    required String billDetails,
+    required double amount,
+  }) async {
+    try {
+      // 1. Determine Service Type
+      String serviceType = 'Bills';
+      final sLower = serviceName.toLowerCase();
+      if (sLower.contains('airtime')) {
+        serviceType = 'Airtime';
+      } else if (sLower.contains('data')) {
+        serviceType = 'Data';
+      } else if (sLower.contains('electric') || sLower.contains('power') || sLower.contains('meter')) {
+        serviceType = 'Electricity';
+      } else if (sLower.contains('dstv') || sLower.contains('gotv') || sLower.contains('startimes') || sLower.contains('showmax') || sLower.contains('cable') || sLower.contains('tv')) {
+        serviceType = 'Cable TV';
+      } else if (sLower.contains('bet') || sLower.contains('sporty')) {
+        serviceType = 'Betting';
+      } else if (sLower.contains('waec')) {
+        serviceType = 'WAEC';
+      } else if (sLower.contains('jamb')) {
+        serviceType = 'JAMB';
+      }
+
+      // 2. Parse Target Number/Meter/Smartcard from details
+      String target = '';
+      final RegExp targetReg = RegExp(
+        r'(?:for|smartcard|meter|id|number|:\s*)\s*([a-zA-Z0-9\-+]+)$',
+        caseSensitive: false,
+      );
+      final match = targetReg.firstMatch(billDetails);
+      if (match != null && match.groupCount >= 1) {
+        target = match.group(1) ?? '';
+      } else {
+        // Fallback: search for any sequence of 5+ digits
+        final RegExp digitReg = RegExp(r'\d{5,}');
+        final allDigits = digitReg.allMatches(billDetails).map((m) => m.group(0)).toList();
+        if (allDigits.isNotEmpty) {
+          target = allDigits.last ?? '';
+        }
+      }
+
+      final cleanTarget = target.replaceAll(RegExp(r'[\s\-+]'), '');
+      if (cleanTarget.isEmpty) return;
+
+      // 3. Find matching active budget
+      final matchedIndex = _budgets.indexWhere((b) {
+        if (b.status != 'active') return false;
+
+        final bServiceMatch = b.serviceType.toLowerCase() == serviceType.toLowerCase();
+        if (!bServiceMatch) return false;
+
+        if (b.target != null && b.target!.isNotEmpty) {
+          final cleanBTarget = b.target!.replaceAll(RegExp(r'[\s\-+]'), '');
+          return cleanBTarget == cleanTarget;
+        }
+
+        return false;
+      });
+
+      if (matchedIndex != -1) {
+        final budget = _budgets[matchedIndex];
+        debugPrint('Budgeting: auto-detected matching budget "${budget.title}" (ID: ${budget.id}). Deducting ₦$amount');
+        await deductFromBudget(budget.id, amount);
+      }
+    } catch (e) {
+      debugPrint('Budgeting: error matching and deducting from budget: $e');
+    }
   }
 
   List<BudgetModel> _getDefaultBudgets() {

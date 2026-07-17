@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
@@ -15,7 +16,10 @@ class AdminConsoleScreen extends StatefulWidget {
   State<AdminConsoleScreen> createState() => _AdminConsoleScreenState();
 }
 
-class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
+class _AdminConsoleScreenState extends State<AdminConsoleScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  bool _isSideNavCollapsed = false;
+
   // Support Tickets State
   List<Map<String, dynamic>> _tickets = [];
   bool _isLoadingTickets = false;
@@ -37,28 +41,64 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
   final _announcementBodyController = TextEditingController();
   bool _isPublishing = false;
 
+  // Marketing Banners State
+  final _bannerImageUrlController = TextEditingController();
+  final _bannerTitleController = TextEditingController();
+  final _bannerActionUrlController = TextEditingController();
+  bool _isSavingBanner = false;
+
   // Pricing State
   final _electricityFeeController = TextEditingController();
   final _cableFeeController = TextEditingController();
   final _transferFeeController = TextEditingController();
   final _pointsRateController = TextEditingController();
+
+  final _airtimeMarkupPercentController = TextEditingController();
+  final _airtimeMarkupFlatController = TextEditingController();
+  final _dataMarkupPercentController = TextEditingController();
+  final _dataMarkupFlatController = TextEditingController();
+  final _cableMarkupPercentController = TextEditingController();
+  final _cableMarkupFlatController = TextEditingController();
+  final _electricityMarkupPercentController = TextEditingController();
+  final _electricityMarkupFlatController = TextEditingController();
+
   bool _isSavingPricing = false;
   bool _isInitializedPricing = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
     _loadOperationsData();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _announcementTitleController.dispose();
     _announcementBodyController.dispose();
     _electricityFeeController.dispose();
     _cableFeeController.dispose();
     _transferFeeController.dispose();
     _pointsRateController.dispose();
+    _bannerImageUrlController.dispose();
+    _bannerTitleController.dispose();
+    _bannerActionUrlController.dispose();
+
+    _airtimeMarkupPercentController.dispose();
+    _airtimeMarkupFlatController.dispose();
+    _dataMarkupPercentController.dispose();
+    _dataMarkupFlatController.dispose();
+    _cableMarkupPercentController.dispose();
+    _cableMarkupFlatController.dispose();
+    _electricityMarkupPercentController.dispose();
+    _electricityMarkupFlatController.dispose();
+
     super.dispose();
   }
 
@@ -417,57 +457,348 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textTheme = Theme.of(context).textTheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 900;
 
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: AppColors.primaryForest,
-          foregroundColor: Colors.white,
-          title: const Text(
-            'Admin Console',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-          ),
-          bottom: const TabBar(
-            labelColor: AppColors.accentLime,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: AppColors.accentLime,
-            tabs: [
-              Tab(icon: Icon(LucideIcons.activity), text: 'Operations'),
-              Tab(icon: Icon(LucideIcons.barChart2), text: 'Accounting'),
-              Tab(icon: Icon(LucideIcons.megaphone), text: 'Marketing'),
-              Tab(icon: Icon(LucideIcons.sliders), text: 'Pricing'),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(LucideIcons.fileText, size: 20),
-              tooltip: 'Developer Documentation',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.refreshCw, size: 20),
-              onPressed: _loadOperationsData,
-            ),
-          ],
-        ),
+    if (isDesktop) {
+      return Scaffold(
         body: Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0C1013) : const Color(0xFFF8F9FA),
           ),
-          child: TabBarView(
+          child: Row(
             children: [
-              _buildOperationsTab(context, textTheme, isDark),
-              _buildAccountingTab(context, textTheme, isDark),
-              _buildMarketingTab(context, textTheme, isDark),
-              _buildPricingTab(context, textTheme, isDark),
+              // Collapsable Side Navigation
+              _buildSideNav(context, isDark, textTheme),
+              // Thin Vertical Divider
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+              ),
+              // Main content pane
+              Expanded(
+                child: Column(
+                  children: [
+                    // Desktop Header Bar
+                    _buildDesktopHeader(context, isDark, textTheme),
+                    // Inner Body Content
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        physics: const NeverScrollableScrollPhysics(), // Disable swiping on desktop
+                        children: [
+                          _buildOperationsTab(context, textTheme, isDark),
+                          _buildAccountingTab(context, textTheme, isDark),
+                          _buildMarketingTab(context, textTheme, isDark),
+                          _buildPricingTab(context, textTheme, isDark),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
+      );
+    }
+
+    // Mobile Viewport (Original Scaffold)
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryForest,
+        foregroundColor: Colors.white,
+        title: const Text(
+          'Admin Console',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.accentLime,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppColors.accentLime,
+          tabs: const [
+            Tab(icon: Icon(LucideIcons.activity), text: 'Operations'),
+            Tab(icon: Icon(LucideIcons.barChart2), text: 'Accounting'),
+            Tab(icon: Icon(LucideIcons.megaphone), text: 'Marketing'),
+            Tab(icon: Icon(LucideIcons.sliders), text: 'Pricing'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.fileText, size: 20),
+            tooltip: 'Developer Documentation',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(LucideIcons.refreshCw, size: 20),
+            onPressed: _loadOperationsData,
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0C1013) : const Color(0xFFF8F9FA),
+        ),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildOperationsTab(context, textTheme, isDark),
+            _buildAccountingTab(context, textTheme, isDark),
+            _buildMarketingTab(context, textTheme, isDark),
+            _buildPricingTab(context, textTheme, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideNav(BuildContext context, bool isDark, TextTheme textTheme) {
+    final activeIndex = _tabController.index;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      width: _isSideNavCollapsed ? 76 : 240,
+      color: isDark ? const Color(0xFF13191B) : AppColors.primaryForest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Logo & Collapse Button
+          Padding(
+            padding: const EdgeInsets.only(top: 24.0, left: 16.0, right: 16.0, bottom: 20.0),
+            child: Row(
+              mainAxisAlignment: _isSideNavCollapsed ? MainAxisAlignment.center : MainAxisAlignment.spaceBetween,
+              children: [
+                if (!_isSideNavCollapsed) ...[
+                  const Icon(LucideIcons.shieldAlert, color: AppColors.accentLime, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'PAYLENSES',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ] else
+                  const Icon(LucideIcons.shieldAlert, color: AppColors.accentLime, size: 24),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Colors.white12),
+          const SizedBox(height: 16),
+
+          // Menu Items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              children: [
+                _buildSideNavItem(
+                  index: 0,
+                  icon: LucideIcons.activity,
+                  label: 'Operations',
+                  isActive: activeIndex == 0,
+                  isDark: isDark,
+                  textTheme: textTheme,
+                ),
+                const SizedBox(height: 8),
+                _buildSideNavItem(
+                  index: 1,
+                  icon: LucideIcons.barChart2,
+                  label: 'Accounting',
+                  isActive: activeIndex == 1,
+                  isDark: isDark,
+                  textTheme: textTheme,
+                ),
+                const SizedBox(height: 8),
+                _buildSideNavItem(
+                  index: 2,
+                  icon: LucideIcons.megaphone,
+                  label: 'Marketing',
+                  isActive: activeIndex == 2,
+                  isDark: isDark,
+                  textTheme: textTheme,
+                ),
+                const SizedBox(height: 8),
+                _buildSideNavItem(
+                  index: 3,
+                  icon: LucideIcons.sliders,
+                  label: 'Pricing & Surcharges',
+                  isActive: activeIndex == 3,
+                  isDark: isDark,
+                  textTheme: textTheme,
+                ),
+              ],
+            ),
+          ),
+
+          // Collapse/Expand toggle at bottom
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                _buildSideNavItem(
+                  index: -1, // Back action
+                  icon: LucideIcons.arrowLeft,
+                  label: 'Back to Profile',
+                  isActive: false,
+                  isDark: isDark,
+                  textTheme: textTheme,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isSideNavCollapsed = !_isSideNavCollapsed;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 48,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        _isSideNavCollapsed ? LucideIcons.chevronRight : LucideIcons.chevronLeft,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSideNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required bool isDark,
+    required TextTheme textTheme,
+    VoidCallback? onTap,
+  }) {
+    final activeBgColor = isDark ? AppColors.primaryForest : Colors.white;
+    final activeTextColor = isDark ? Colors.white : AppColors.primaryForest;
+    final inactiveTextColor = Colors.white.withOpacity(0.7);
+
+    final Widget child = InkWell(
+      onTap: onTap ?? () {
+        _tabController.animateTo(index);
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 48,
+        padding: EdgeInsets.symmetric(horizontal: _isSideNavCollapsed ? 0 : 16),
+        decoration: BoxDecoration(
+          color: isActive ? activeBgColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: _isSideNavCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? activeTextColor : inactiveTextColor,
+              size: 20,
+            ),
+            if (!_isSideNavCollapsed) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: isActive ? activeTextColor : inactiveTextColor,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    if (_isSideNavCollapsed) {
+      return Tooltip(
+        message: label,
+        child: child,
+      );
+    }
+
+    return child;
+  }
+
+  Widget _buildDesktopHeader(BuildContext context, bool isDark, TextTheme textTheme) {
+    final activeIndex = _tabController.index;
+    String title = 'Admin Console';
+    if (activeIndex == 0) title = 'Operations & Support Tickets';
+    if (activeIndex == 1) title = 'Accounting & Settlement Ledger';
+    if (activeIndex == 2) title = 'Marketing & Banners Campaigns';
+    if (activeIndex == 3) title = 'Vending Surcharges & Markups';
+
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF13191B) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.textDark,
+              fontSize: 18,
+            ),
+          ),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const InAppDocumentationScreen()),
+              );
+            },
+            icon: const Icon(LucideIcons.fileText, size: 16),
+            label: const Text('Developer Documentation'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accentLime,
+              foregroundColor: AppColors.textDark,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            icon: const Icon(LucideIcons.refreshCw, size: 20),
+            color: isDark ? Colors.white70 : AppColors.textDark,
+            onPressed: _loadOperationsData,
+            tooltip: 'Refresh Stats',
+          ),
+        ],
       ),
     );
   }
@@ -1220,13 +1551,13 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
 
           const SizedBox(height: 24),
 
-          // Section: Popular Vending Highlights
+          // Section: Marketing Banners management
           Row(
             children: [
-              const Icon(LucideIcons.sparkles, color: AppColors.primaryForest, size: 20),
+              const Icon(LucideIcons.image, color: AppColors.primaryForest, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Shortcut Highlight Optimizer',
+                'Marketing Banners Slider Manager',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : AppColors.textDark,
@@ -1238,27 +1569,197 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                width: 1,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Manage hot-selling packages displayed on user Home shortcuts:',
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 12),
-                ),
-                const SizedBox(height: 14),
-                _buildShortcutOptimizerRow('MTN SME 1GB', true),
-                const Divider(height: 12),
-                _buildShortcutOptimizerRow('Airtel CG 1.5GB', true),
-                const Divider(height: 12),
-                _buildShortcutOptimizerRow('Glo SME 2GB', true),
-                const Divider(height: 12),
-                _buildShortcutOptimizerRow('IKEDC Prepaid', false),
-                const Divider(height: 12),
-                _buildShortcutOptimizerRow('GOTV Max', false),
-              ],
+            child: Consumer<WalletProvider>(
+              builder: (context, walletProvider, child) {
+                final banners = walletProvider.marketingBanners;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Current Slides List:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 10),
+                    if (banners.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: Text(
+                          'No custom banners added yet. App will fallback to beautiful system default slides.',
+                          style: TextStyle(color: AppColors.textGrey, fontSize: 11, fontStyle: FontStyle.italic),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: banners.length,
+                        itemBuilder: (context, index) {
+                          final banner = banners[index];
+                          final bool isDefault = banner['id'].toString().startsWith('default-');
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: banner['image_url'] ?? '',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.grey.shade200,
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.5,
+                                        color: AppColors.primaryForest,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.grey,
+                                  child: const Icon(LucideIcons.image, size: 20),
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              banner['title'] ?? 'Untitled Slide',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              'Action: ',
+                              style: const TextStyle(fontSize: 10, color: AppColors.textGrey),
+                            ),
+                            trailing: isDefault
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('System', style: TextStyle(fontSize: 9, color: AppColors.textGrey, fontWeight: FontWeight.bold)),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(LucideIcons.trash2, color: AppColors.errorRed, size: 18),
+                                    onPressed: () async {
+                                      final success = await walletProvider.deleteMarketingBanner(banner['id']);
+                                      if (success && mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Banner slide deleted successfully!')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                          );
+                        },
+                      ),
+                    const Divider(height: 24),
+                    const Text(
+                      'Add New Marketing Slide Banner:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _bannerTitleController,
+                      decoration: InputDecoration(
+                        labelText: 'Banner Slide Title (Headline)',
+                        labelStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _bannerImageUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Banner Image URL (Unsplash or web link)',
+                        labelStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _bannerActionUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Action Redirect Path (e.g. /budgeting or /transfers)',
+                        labelStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: _isSavingBanner
+                            ? null
+                            : () async {
+                                final img = _bannerImageUrlController.text.trim();
+                                final title = _bannerTitleController.text.trim();
+                                final action = _bannerActionUrlController.text.trim();
+                                
+                                if (img.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please provide an image URL!'), backgroundColor: AppColors.errorRed),
+                                  );
+                                  return;
+                                }
+                                
+                                setState(() {
+                                  _isSavingBanner = true;
+                                });
+                                
+                                final success = await walletProvider.addMarketingBanner(img, title, action);
+                                
+                                setState(() {
+                                  _isSavingBanner = false;
+                                });
+                                
+                                if (success && mounted) {
+                                  _bannerImageUrlController.clear();
+                                  _bannerTitleController.clear();
+                                  _bannerActionUrlController.clear();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Banner slide added successfully!'), backgroundColor: AppColors.successGreen),
+                                  );
+                                } else if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Failed to add banner. Please verify SQL schema is deployed.'), backgroundColor: AppColors.errorRed),
+                                  );
+                                }
+                              },
+                        icon: _isSavingBanner
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(LucideIcons.plus, size: 16),
+                        label: const Text('Add Marketing Slide'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryForest,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1303,6 +1804,16 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
       _cableFeeController.text = walletProvider.cableFee.toStringAsFixed(2);
       _transferFeeController.text = walletProvider.transferFee.toStringAsFixed(2);
       _pointsRateController.text = (walletProvider.pointsRate * 100).toStringAsFixed(1);
+
+      _airtimeMarkupPercentController.text = walletProvider.airtimeMarkupPercent.toStringAsFixed(2);
+      _airtimeMarkupFlatController.text = walletProvider.airtimeMarkupFlat.toStringAsFixed(2);
+      _dataMarkupPercentController.text = walletProvider.dataMarkupPercent.toStringAsFixed(2);
+      _dataMarkupFlatController.text = walletProvider.dataMarkupFlat.toStringAsFixed(2);
+      _cableMarkupPercentController.text = walletProvider.cableMarkupPercent.toStringAsFixed(2);
+      _cableMarkupFlatController.text = walletProvider.cableMarkupFlat.toStringAsFixed(2);
+      _electricityMarkupPercentController.text = walletProvider.electricityMarkupPercent.toStringAsFixed(2);
+      _electricityMarkupFlatController.text = walletProvider.electricityMarkupFlat.toStringAsFixed(2);
+
       _isInitializedPricing = true;
     }
 
@@ -1393,6 +1904,143 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
+                const Divider(height: 32),
+
+                Row(
+                  children: [
+                    const Icon(LucideIcons.percent, color: AppColors.primaryForest, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Business Addition Markups (Markup per Vending Plan)',
+                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Set percentages or flat Naira additions. Both can be combined (e.g. 2% + ₦50).',
+                  style: TextStyle(color: AppColors.textGrey, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+
+                // Airtime Markup
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _airtimeMarkupPercentController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Airtime Markup (%)',
+                          prefixIcon: const Icon(LucideIcons.phone),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _airtimeMarkupFlatController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Airtime Markup (₦)',
+                          prefixIcon: const Icon(LucideIcons.coins),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Data Markup
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _dataMarkupPercentController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Data Markup (%)',
+                          prefixIcon: const Icon(LucideIcons.globe),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _dataMarkupFlatController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Data Markup (₦)',
+                          prefixIcon: const Icon(LucideIcons.coins),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Cable TV Markup
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _cableMarkupPercentController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Cable TV Markup (%)',
+                          prefixIcon: const Icon(LucideIcons.tv),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _cableMarkupFlatController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Cable TV Markup (₦)',
+                          prefixIcon: const Icon(LucideIcons.coins),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Electricity Markup
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _electricityMarkupPercentController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Electricity Markup (%)',
+                          prefixIcon: const Icon(LucideIcons.zap),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _electricityMarkupFlatController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Electricity Markup (₦)',
+                          prefixIcon: const Icon(LucideIcons.coins),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
 
                 SizedBox(
@@ -1433,6 +2081,15 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
     final trans = double.tryParse(_transferFeeController.text) ?? 25.0;
     final rate = (double.tryParse(_pointsRateController.text) ?? 1.0) / 100.0;
 
+    final airtimePct = double.tryParse(_airtimeMarkupPercentController.text) ?? 0.0;
+    final airtimeFlat = double.tryParse(_airtimeMarkupFlatController.text) ?? 0.0;
+    final dataPct = double.tryParse(_dataMarkupPercentController.text) ?? 0.0;
+    final dataFlat = double.tryParse(_dataMarkupFlatController.text) ?? 0.0;
+    final cablePct = double.tryParse(_cableMarkupPercentController.text) ?? 0.0;
+    final cableFlat = double.tryParse(_cableMarkupFlatController.text) ?? 0.0;
+    final electPct = double.tryParse(_electricityMarkupPercentController.text) ?? 0.0;
+    final electFlat = double.tryParse(_electricityMarkupFlatController.text) ?? 0.0;
+
     try {
       await SupabaseService.client.from('fees_config').upsert({
         'id': 'main',
@@ -1440,6 +2097,14 @@ class _AdminConsoleScreenState extends State<AdminConsoleScreen> {
         'cable_fee': cable,
         'transfer_fee': trans,
         'points_rate': rate,
+        'airtime_markup_percent': airtimePct,
+        'airtime_markup_flat': airtimeFlat,
+        'data_markup_percent': dataPct,
+        'data_markup_flat': dataFlat,
+        'cable_markup_percent': cablePct,
+        'cable_markup_flat': cableFlat,
+        'electricity_markup_percent': electPct,
+        'electricity_markup_flat': electFlat,
       });
 
       await walletProvider.fetchFeesConfig();

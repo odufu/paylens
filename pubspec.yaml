@@ -48,6 +48,8 @@ dependencies:
   webview_flutter: ^4.10.0
   http: ^1.6.0
   crypto: ^3.0.6
+  cached_network_image: ^3.4.1
+  local_auth: ^3.0.2
 
 dev_dependencies:
   flutter_test:

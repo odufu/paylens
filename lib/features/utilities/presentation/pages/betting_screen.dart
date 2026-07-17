@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mspay/core/presentation/widgets/transaction_security_gate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mspay/core/constants/app_colors.dart';
 import 'package:mspay/core/utils/currency_formatter.dart';
@@ -120,6 +121,12 @@ class _BettingScreenState extends State<BettingScreen> {
       );
       return;
     }
+
+    final authorized = await TransactionSecurityGate.authorize(
+      context,
+      reason: 'Authorize $_selectedProvider wallet funding of ₦$totalDebit for customer ID ${_customerIdController.text.trim()}',
+    );
+    if (!authorized) return;
 
     setState(() {
       _isPaying = true;

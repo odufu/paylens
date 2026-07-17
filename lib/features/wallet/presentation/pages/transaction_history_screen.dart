@@ -322,7 +322,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: Column(
         children: [
           // Filter Chips & Search Block
           Container(
@@ -456,6 +459,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

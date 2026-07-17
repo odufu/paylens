@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     loyalty_points INTEGER DEFAULT 0 NOT NULL,
     kyc_verified BOOLEAN DEFAULT false NOT NULL,
     bvn_verified_at TIMESTAMPTZ,
+    transaction_pin TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -26,7 +27,15 @@ CREATE TABLE IF NOT EXISTS public.fees_config (
     cable_fee NUMERIC(15, 2) DEFAULT 150.00 NOT NULL,
     transfer_fee NUMERIC(15, 2) DEFAULT 25.00 NOT NULL,
     referral_bonus NUMERIC(15, 2) DEFAULT 100.00 NOT NULL,
-    points_rate NUMERIC(15, 4) DEFAULT 0.0100 NOT NULL
+    points_rate NUMERIC(15, 4) DEFAULT 0.0100 NOT NULL,
+    airtime_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL,
+    airtime_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL,
+    data_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL,
+    data_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL,
+    cable_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL,
+    cable_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL,
+    electricity_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL,
+    electricity_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL
 );
 
 -- Seed default fees configuration
@@ -360,3 +369,48 @@ CREATE POLICY "Users can update their own budgets" ON public.budgets
 DROP POLICY IF EXISTS "Users can delete their own budgets" ON public.budgets;
 CREATE POLICY "Users can delete their own budgets" ON public.budgets
     FOR DELETE USING (auth.uid() = profile_id);
+
+-- 9. Create Marketing Banners Table
+CREATE TABLE IF NOT EXISTS public.marketing_banners (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    image_url TEXT NOT NULL,
+    title TEXT,
+    action_url TEXT, -- optional navigation route or link
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.marketing_banners ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access to marketing banners
+DROP POLICY IF EXISTS "Allow public read access to marketing banners" ON public.marketing_banners;
+CREATE POLICY "Allow public read access to marketing banners" ON public.marketing_banners
+    FOR SELECT USING (true);
+
+-- Allow authenticated users to manage marketing banners (insert/delete)
+DROP POLICY IF EXISTS "Allow authenticated users to manage marketing banners" ON public.marketing_banners;
+CREATE POLICY "Allow authenticated users to manage marketing banners" ON public.marketing_banners
+    FOR ALL USING (true);
+
+-- Seed default marketing banners
+INSERT INTO public.marketing_banners (image_url, title, action_url)
+VALUES 
+  ('https://images.unsplash.com/photo-1616077168712-fc6c788bc4ee?w=800&auto=format&fit=crop&q=60', 'Paylens Budgeting: Lock and Save Automatically!', '/budgeting'),
+  ('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=60', 'Zero Outbound Transfer Fees - Limitless Transfers!', '/transfers'),
+  ('https://images.unsplash.com/photo-1563013544-824ae1d704d3?w=800&auto=format&fit=crop&q=60', 'Earn 1 LensPoint for every N100 spent on Bills!', '/loyalty')
+ON CONFLICT DO NOTHING;
+
+-- Alter profiles table to add column if it doesn't exist
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS transaction_pin TEXT;
+
+-- Alter fees_config table to add percentage and flat markups per service type
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
+
+

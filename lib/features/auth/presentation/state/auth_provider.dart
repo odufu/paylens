@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:mspay/core/services/supabase_service.dart';
 import 'package:mspay/features/auth/domain/entities/user_entity.dart';
 import 'package:mspay/features/auth/domain/entities/user_profile_entity.dart';
 import 'package:mspay/features/auth/domain/repositories/auth_repository.dart';
@@ -25,6 +28,10 @@ class AuthProvider extends ChangeNotifier {
   UserProfileEntity? _userProfile;
   bool _isLoading = false;
 
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _biometricsEnabled = false;
+  String? _transactionPin;
+
   // Getters
   UserEntity? get user => _currentUser;
   bool get isAuthenticated => _currentUser != null;
@@ -36,6 +43,10 @@ class AuthProvider extends ChangeNotifier {
   String get userId => _currentUser?.id ?? '';
   String? get avatarUrl => _userProfile?.avatarUrl;
   bool get isAdmin => userEmail.toLowerCase().contains('admin') || userEmail.toLowerCase().endsWith('@paylenses.com');
+
+  bool get biometricsEnabled => _biometricsEnabled;
+  bool get hasTransactionPin => _transactionPin != null && _transactionPin!.isNotEmpty;
+  String? get transactionPin => _transactionPin;
 
   AuthProvider({
     required this.signInUseCase,
@@ -54,15 +65,17 @@ class AuthProvider extends ChangeNotifier {
   void _initializeAuthListener() {
     _currentUser = authRepository.currentUser;
     if (_currentUser != null) {
-      _fetchProfile();
+      _loadCachedProfile().then((_) => _fetchProfile());
     }
 
     authRepository.onAuthStateChanged.listen((user) async {
       _currentUser = user;
       if (_currentUser != null) {
+        await _loadCachedProfile();
         await _fetchProfile();
       } else {
         _userProfile = null;
+        await _clearCachedProfile();
         notifyListeners();
       }
     });
@@ -75,12 +88,145 @@ class AuthProvider extends ChangeNotifier {
       final result = await getProfileUseCase(_currentUser!.id);
       if (result.isSuccess) {
         _userProfile = result.value;
+        if (_userProfile != null) {
+          await _cacheProfile(_userProfile!);
+        }
+
+        // Fetch transaction PIN from Supabase profiles table
+        final profileData = await SupabaseService.client
+            .from('profiles')
+            .select('transaction_pin')
+            .eq('id', _currentUser!.id)
+            .maybeSingle();
+        if (profileData != null && profileData['transaction_pin'] != null) {
+          _transactionPin = profileData['transaction_pin'].toString();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('transaction_pin', _transactionPin!);
+        }
+
         notifyListeners();
       } else {
         debugPrint('Error fetching profile from use case: ${result.failure}');
       }
     } catch (e) {
       debugPrint('Error fetching profile: $e');
+    }
+  }
+
+  Future<void> _loadCachedProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString('cached_profile_id');
+      final fullName = prefs.getString('cached_profile_full_name');
+      final avatarUrl = prefs.getString('cached_profile_avatar_url');
+      final loyaltyPoints = prefs.getInt('cached_profile_loyalty_points') ?? 0;
+
+      _biometricsEnabled = prefs.getBool('biometrics_enabled') ?? false;
+      _transactionPin = prefs.getString('transaction_pin');
+
+      if (id != null && fullName != null) {
+        _userProfile = UserProfileEntity(
+          id: id,
+          fullName: fullName,
+          avatarUrl: avatarUrl,
+          loyaltyPoints: loyaltyPoints,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading cached profile: $e');
+    }
+  }
+
+  Future<void> _cacheProfile(UserProfileEntity profile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_profile_id', profile.id);
+      await prefs.setString('cached_profile_full_name', profile.fullName);
+      if (profile.avatarUrl != null) {
+        await prefs.setString('cached_profile_avatar_url', profile.avatarUrl!);
+      } else {
+        await prefs.remove('cached_profile_avatar_url');
+      }
+      await prefs.setInt('cached_profile_loyalty_points', profile.loyaltyPoints);
+    } catch (e) {
+      debugPrint('Error caching profile: $e');
+    }
+  }
+
+  Future<void> _clearCachedProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_profile_id');
+      await prefs.remove('cached_profile_full_name');
+      await prefs.remove('cached_profile_avatar_url');
+      await prefs.remove('cached_profile_loyalty_points');
+      await prefs.remove('transaction_pin');
+      await prefs.remove('biometrics_enabled');
+      _transactionPin = null;
+      _biometricsEnabled = false;
+    } catch (e) {
+      debugPrint('Error clearing cached profile: $e');
+    }
+  }
+
+  // --- SECURITY PIN & BIOMETRICS METHODS ---
+
+  Future<void> setBiometricsEnabled(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometrics_enabled', value);
+      _biometricsEnabled = value;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error setting biometrics enabled: $e');
+    }
+  }
+
+  Future<bool> setTransactionPin(String pin) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('transaction_pin', pin);
+      _transactionPin = pin;
+
+      final uid = _currentUser?.id;
+      if (uid != null) {
+        await SupabaseService.client
+            .from('profiles')
+            .update({'transaction_pin': pin})
+            .eq('id', uid);
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error setting transaction pin: $e');
+      return false;
+    }
+  }
+
+  bool verifyTransactionPin(String pin) {
+    return _transactionPin == pin;
+  }
+
+  Future<bool> authenticateWithBiometrics(String reason) async {
+    try {
+      final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      final bool canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+
+      if (!canAuthenticate) {
+        debugPrint('Biometrics not available on this device');
+        return false;
+      }
+
+      return await _localAuth.authenticate(
+        localizedReason: reason,
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+    } catch (e) {
+      debugPrint('Biometric authentication failed: $e');
+      return false;
     }
   }
 

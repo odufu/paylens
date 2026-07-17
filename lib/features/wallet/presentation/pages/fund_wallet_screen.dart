@@ -132,7 +132,10 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,6 +250,8 @@ class _FundWalletScreenState extends State<FundWalletScreen> {
             ),
 
           ],
+        ),
+      ),
         ),
       ),
     );
