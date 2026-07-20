@@ -21,15 +21,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   void initState() {
     super.initState();
-    // If we have an initial query, process it after first frame loads
-    if (widget.initialText != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Provider.of<ChatProvider>(
-          context,
-          listen: false,
-        ).sendMessage(widget.initialText!);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      chatProvider.connectToLiveAgent();
+      if (widget.initialText != null) {
+        chatProvider.sendMessage(widget.initialText!);
+      }
+    });
   }
 
   @override
@@ -107,9 +105,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      'Online • AI Assistant',
-                      style: TextStyle(
+                     Text(
+                      'Online • Live Support',
+                      style: const TextStyle(
                         fontSize: 10,
                         color: AppColors.textLightGrey,
                       ),
@@ -123,21 +121,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         backgroundColor: AppColors.primaryForest,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.rotateCcw),
-            tooltip: 'Reset Conversation',
-            onPressed: () {
-              chatProvider.clearChat();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Support session restarted.'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -274,7 +257,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 radius: 14,
                 backgroundColor: AppColors.primaryForest.withValues(alpha: 0.08),
                 child: const Icon(
-                  LucideIcons.bot,
+                  LucideIcons.userCheck,
                   size: 16,
                   color: AppColors.primaryForest,
                 ),

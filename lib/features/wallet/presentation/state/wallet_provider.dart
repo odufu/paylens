@@ -20,6 +20,7 @@ class WalletProvider extends ChangeNotifier {
   String _paystackCustomerCode = 'UNVERIFIED'; // Paystack customer reference code
   int _loyaltyPoints = 0; // Customer loyalty/reward points
   bool _kycVerified = false; // Is BVN verification completed?
+  double _cashbackBalance = 0.00; // Customer cashback balance (LensPoints)
   
   List<TransactionModel> _transactions = [];
   List<BeneficiaryModel> _beneficiaries = [];
@@ -43,8 +44,33 @@ class WalletProvider extends ChangeNotifier {
   double _electricityMarkupPercent = 0.0;
   double _electricityMarkupFlat = 0.0;
 
+  double _airtimeMtnTotalComm = 3.0;
+  double _airtimeMtnAdminShare = 2.0;
+  double _airtimeGloTotalComm = 8.0;
+  double _airtimeGloAdminShare = 5.0;
+  double _airtime9mobileTotalComm = 7.0;
+  double _airtime9mobileAdminShare = 4.0;
+  double _airtimeAirtelTotalComm = 3.0;
+  double _airtimeAirtelAdminShare = 2.0;
+
+  double _dataMtnTotalComm = 3.0;
+  double _dataMtnAdminShare = 2.0;
+  double _dataGloTotalComm = 4.5;
+  double _dataGloAdminShare = 3.0;
+  double _data9mobileTotalComm = 7.0;
+  double _data9mobileAdminShare = 4.0;
+  double _dataAirtelTotalComm = 3.0;
+  double _dataAirtelAdminShare = 2.0;
+
+  double _electricityTotalComm = 0.01;
+  double _electricityAdminShare = 0.005;
+
+  double _cableTotalComm = 0.0;
+  double _cableAdminShare = 0.0;
+
   // Getters
   double get balance => _balance;
+  double get cashbackBalance => _cashbackBalance;
   bool get isBalanceVisible => _isBalanceVisible;
   String get wemaAccountNumber => _paystackAccountNumber; // Backward compatibility alias
   String get sterlingAccountNumber => _kycVerified ? '8891827364' : 'Verify BVN to activate'; // Fallback Titan Trust account
@@ -67,18 +93,93 @@ class WalletProvider extends ChangeNotifier {
   double get electricityMarkupPercent => _electricityMarkupPercent;
   double get electricityMarkupFlat => _electricityMarkupFlat;
 
+  double get airtimeMtnTotalComm => _airtimeMtnTotalComm;
+  double get airtimeMtnAdminShare => _airtimeMtnAdminShare;
+  double get airtimeGloTotalComm => _airtimeGloTotalComm;
+  double get airtimeGloAdminShare => _airtimeGloAdminShare;
+  double get airtime9mobileTotalComm => _airtime9mobileTotalComm;
+  double get airtime9mobileAdminShare => _airtime9mobileAdminShare;
+  double get airtimeAirtelTotalComm => _airtimeAirtelTotalComm;
+  double get airtimeAirtelAdminShare => _airtimeAirtelAdminShare;
+
+  double get dataMtnTotalComm => _dataMtnTotalComm;
+  double get dataMtnAdminShare => _dataMtnAdminShare;
+  double get dataGloTotalComm => _dataGloTotalComm;
+  double get dataGloAdminShare => _dataGloAdminShare;
+  double get data9mobileTotalComm => _data9mobileTotalComm;
+  double get data9mobileAdminShare => _data9mobileAdminShare;
+  double get dataAirtelTotalComm => _dataAirtelTotalComm;
+  double get dataAirtelAdminShare => _dataAirtelAdminShare;
+
+  double get electricityTotalComm => _electricityTotalComm;
+  double get electricityAdminShare => _electricityAdminShare;
+
+  double get cableTotalComm => _cableTotalComm;
+  double get cableAdminShare => _cableAdminShare;
+
   // Convenience price calculation helpers
   double getAirtimePrice(double basePrice) => basePrice * (1 + _airtimeMarkupPercent / 100) + _airtimeMarkupFlat;
   double getDataPrice(double basePrice) => basePrice * (1 + _dataMarkupPercent / 100) + _dataMarkupFlat;
   double getCablePrice(double basePrice) => basePrice * (1 + _cableMarkupPercent / 100) + _cableMarkupFlat;
   double getElectricityPrice(double basePrice) => basePrice * (1 + _electricityMarkupPercent / 100) + _electricityMarkupFlat;
+
+  Map<String, double> getCommissionRates({required String serviceType, required String providerName}) {
+    final cleanProvider = providerName.trim().toLowerCase();
+    final cleanService = serviceType.trim().toLowerCase();
+
+    double total = 0.0;
+    double admin = 0.0;
+
+    if (cleanService == 'airtime') {
+      if (cleanProvider.contains('mtn')) {
+        total = _airtimeMtnTotalComm;
+        admin = _airtimeMtnAdminShare;
+      } else if (cleanProvider.contains('glo')) {
+        total = _airtimeGloTotalComm;
+        admin = _airtimeGloAdminShare;
+      } else if (cleanProvider.contains('9mobile') || cleanProvider.contains('etisalat')) {
+        total = _airtime9mobileTotalComm;
+        admin = _airtime9mobileAdminShare;
+      } else if (cleanProvider.contains('airtel')) {
+        total = _airtimeAirtelTotalComm;
+        admin = _airtimeAirtelAdminShare;
+      }
+    } else if (cleanService == 'data') {
+      if (cleanProvider.contains('mtn')) {
+        total = _dataMtnTotalComm;
+        admin = _dataMtnAdminShare;
+      } else if (cleanProvider.contains('glo')) {
+        total = _dataGloTotalComm;
+        admin = _dataGloAdminShare;
+      } else if (cleanProvider.contains('9mobile') || cleanProvider.contains('etisalat')) {
+        total = _data9mobileTotalComm;
+        admin = _data9mobileAdminShare;
+      } else if (cleanProvider.contains('airtel')) {
+        total = _dataAirtelTotalComm;
+        admin = _dataAirtelAdminShare;
+      }
+    } else if (cleanService == 'electricity') {
+      total = _electricityTotalComm;
+      admin = _electricityAdminShare;
+    } else if (cleanService == 'cable' || cleanService == 'cable tv') {
+      total = _cableTotalComm;
+      admin = _cableAdminShare;
+    }
+
+    return {
+      'total': total,
+      'admin': admin,
+      'user': (total - admin) < 0.0 ? 0.0 : total - admin,
+    };
+  }
+
   List<TransactionModel> get transactions => _transactions;
   List<BeneficiaryModel> get beneficiaries => _beneficiaries;
   List<BudgetModel> get budgets => _budgets;
   bool get isSyncing => _isSyncing;
   List<Map<String, dynamic>> get marketingBanners => _marketingBanners;
 
-  double get availableBalance => _balance - lockedBudgetBalance;
+  double get availableBalance => _balance;
 
   double get lockedBudgetBalance {
     return _budgets
@@ -224,6 +325,30 @@ class WalletProvider extends ChangeNotifier {
         _cableMarkupFlat = (config['cable_markup_flat'] as num? ?? 0.0).toDouble();
         _electricityMarkupPercent = (config['electricity_markup_percent'] as num? ?? 0.0).toDouble();
         _electricityMarkupFlat = (config['electricity_markup_flat'] as num? ?? 0.0).toDouble();
+
+        _airtimeMtnTotalComm = (config['airtime_mtn_total_comm'] as num? ?? 3.0).toDouble();
+        _airtimeMtnAdminShare = (config['airtime_mtn_admin_share'] as num? ?? 2.0).toDouble();
+        _airtimeGloTotalComm = (config['airtime_glo_total_comm'] as num? ?? 8.0).toDouble();
+        _airtimeGloAdminShare = (config['airtime_glo_admin_share'] as num? ?? 5.0).toDouble();
+        _airtime9mobileTotalComm = (config['airtime_9mobile_total_comm'] as num? ?? 7.0).toDouble();
+        _airtime9mobileAdminShare = (config['airtime_9mobile_admin_share'] as num? ?? 4.0).toDouble();
+        _airtimeAirtelTotalComm = (config['airtime_airtel_total_comm'] as num? ?? 3.0).toDouble();
+        _airtimeAirtelAdminShare = (config['airtime_airtel_admin_share'] as num? ?? 2.0).toDouble();
+
+        _dataMtnTotalComm = (config['data_mtn_total_comm'] as num? ?? 3.0).toDouble();
+        _dataMtnAdminShare = (config['data_mtn_admin_share'] as num? ?? 2.0).toDouble();
+        _dataGloTotalComm = (config['data_glo_total_comm'] as num? ?? 4.5).toDouble();
+        _dataGloAdminShare = (config['data_glo_admin_share'] as num? ?? 3.0).toDouble();
+        _data9mobileTotalComm = (config['data_9mobile_total_comm'] as num? ?? 7.0).toDouble();
+        _data9mobileAdminShare = (config['data_9mobile_admin_share'] as num? ?? 4.0).toDouble();
+        _dataAirtelTotalComm = (config['data_airtel_total_comm'] as num? ?? 3.0).toDouble();
+        _dataAirtelAdminShare = (config['data_airtel_admin_share'] as num? ?? 2.0).toDouble();
+
+        _electricityTotalComm = (config['electricity_total_comm'] as num? ?? 0.01).toDouble();
+        _electricityAdminShare = (config['electricity_admin_share'] as num? ?? 0.005).toDouble();
+
+        _cableTotalComm = (config['cable_total_comm'] as num? ?? 0.0).toDouble();
+        _cableAdminShare = (config['cable_admin_share'] as num? ?? 0.0).toDouble();
       }
     } catch (e) {
       debugPrint('Failed to fetch fees config: $e. Using default local values.');
@@ -245,6 +370,7 @@ class WalletProvider extends ChangeNotifier {
 
       if (profile != null) {
         _balance = (profile['wallet_balance'] as num).toDouble();
+        _cashbackBalance = ((profile['cashback_balance'] ?? 0.0) as num).toDouble();
         _loyaltyPoints = (profile['loyalty_points'] ?? 0) as int;
         _kycVerified = (profile['kyc_verified'] ?? false) as bool;
         
@@ -740,18 +866,29 @@ class WalletProvider extends ChangeNotifier {
     required TransactionCategory category,
     String gateway = 'ClubKonnect',
     String? vendorReference,
+    double? baseAmount,
+    String? serviceType,
+    String? providerName,
+    bool isBudgetExecution = false,
+    double cashbackApplied = 0.0,
   }) async {
-    if (_balance < amount) return false;
+    if (!isBudgetExecution && (_balance + _cashbackBalance) < amount) return false;
     final uid = _userId;
     final reference = '${gateway == 'ClubKonnect' ? 'CK' : 'VTP'}-${_uuid.v4().substring(0, 8).toUpperCase()}';
 
     if (uid != null) {
       try {
-        // Deduct profile balance
-        await SupabaseService.client
-            .from('profiles')
-            .update({'wallet_balance': _balance - amount})
-            .eq('id', uid);
+        // Deduct profile balance & cashback if not budget execution
+        if (!isBudgetExecution) {
+          final double walletDeduction = amount - cashbackApplied;
+          await SupabaseService.client
+              .from('profiles')
+              .update({
+                'wallet_balance': _balance - walletDeduction,
+                'cashback_balance': cashbackApplied > 0.0 ? 0.0 : _cashbackBalance,
+              })
+              .eq('id', uid);
+        }
 
         // Insert transaction record
         final Map<String, dynamic> insertData = {
@@ -777,9 +914,20 @@ class WalletProvider extends ChangeNotifier {
         if (insertRes != null && insertRes['id'] != null) {
           final txId = insertRes['id'];
           
-          // 1. Calculate and Award Loyalty & Cashback (1% cashback, 1 point per ₦100)
-          final double cashback = amount * 0.01;
-          final int points = (amount / 100).floor();
+          // 1. Calculate and Award Loyalty & Cashback (using dynamic split ratios)
+          final cleanServiceType = serviceType ?? (serviceName.toLowerCase().contains('airtime') ? 'airtime' : (serviceName.toLowerCase().contains('data') ? 'data' : (serviceName.toLowerCase().contains('electricity') ? 'electricity' : 'cable')));
+          final cleanProviderName = providerName ?? (serviceName.toLowerCase().contains('mtn') ? 'mtn' : (serviceName.toLowerCase().contains('glo') ? 'glo' : (serviceName.toLowerCase().contains('9mobile') || serviceName.toLowerCase().contains('etisalat') ? '9mobile' : (serviceName.toLowerCase().contains('airtel') ? 'airtel' : 'mtn'))));
+          
+          final rates = getCommissionRates(
+            serviceType: cleanServiceType,
+            providerName: cleanProviderName,
+          );
+          final totalCommRate = rates['total'] ?? 0.0;
+          final userCashbackRate = rates['user'] ?? 0.0;
+
+          final double targetBase = baseAmount ?? amount;
+          final double cashback = targetBase * (userCashbackRate / 100.0);
+          final int points = (targetBase / 100).floor(); // Default 1 point per N100 face value
           
           try {
             await SupabaseService.client.rpc('reward_loyalty', params: {
@@ -793,23 +941,34 @@ class WalletProvider extends ChangeNotifier {
             debugPrint('Failed to reward loyalty in Supabase: $loyaltyErr');
           }
 
+          // Log cashback spend in loyalty ledger
+          if (cashbackApplied > 0.0) {
+            try {
+              await SupabaseService.client.from('loyalty_ledgers').insert({
+                'profile_id': uid,
+                'transaction_id': txId,
+                'points_change': 0,
+                'cashback_change': -_cashbackBalance,
+                'type': 'spend_cashback',
+                'description': 'Applied cashback on $serviceName (exhausted balance)'
+              });
+            } catch (ledgerErr) {
+              debugPrint('Failed to log spend_cashback in loyalty ledger: $ledgerErr');
+            }
+          }
+
           // 2. Insert into Settlement & Profit Ledger
           try {
-            double discountRate = 0.03; // Default 3% commission discount
-            if (serviceName.toLowerCase().contains('data')) {
-              discountRate = 0.04;
-            } else if (serviceName.toLowerCase().contains('electricity') || serviceName.toLowerCase().contains('cable')) {
-              discountRate = 0.0;
-            }
-            final vtpassCost = amount * (1.0 - discountRate);
+            final double resellerCost = targetBase * (1.0 - totalCommRate / 100.0);
+            final double netProfit = amount - resellerCost - cashback;
 
             await SupabaseService.client.from('settlement_ledger').insert({
               'transaction_id': txId,
               'user_id': uid,
               'intake_amount': amount,
               'expected_paystack_settlement': amount,
-              'vtpass_cost': vtpassCost,
-              'net_profit': amount - vtpassCost,
+              'vtpass_cost': resellerCost,
+              'net_profit': netProfit,
               'reconciliation_status': 'pending',
             });
           } catch (settleErr) {
@@ -830,7 +989,11 @@ class WalletProvider extends ChangeNotifier {
     }
 
     // Local Fallback
-    _balance -= amount;
+    if (!isBudgetExecution) {
+      final double walletDeduction = amount - cashbackApplied;
+      _balance -= walletDeduction;
+      _cashbackBalance = cashbackApplied > 0.0 ? 0.0 : _cashbackBalance;
+    }
     final tx = TransactionModel(
       id: _uuid.v4(),
       title: serviceName,
@@ -1228,6 +1391,7 @@ class WalletProvider extends ChangeNotifier {
     required String frequency,
     double? subscriptionCost,
   }) async {
+    if (_balance < amount) return false;
     final uid = _userId;
     
     _isSyncing = true;
@@ -1237,8 +1401,8 @@ class WalletProvider extends ChangeNotifier {
         ? (frequency == 'daily'
             ? DateTime.now().add(const Duration(days: 1))
             : frequency == 'weekly'
-                ? DateTime.now().add(const Duration(days: 7))
-                : DateTime.now().add(const Duration(days: 30)))
+            ? DateTime.now().add(const Duration(days: 7))
+            : DateTime.now().add(const Duration(days: 30)))
         : null;
 
     final newBudget = BudgetModel(
@@ -1260,7 +1424,27 @@ class WalletProvider extends ChangeNotifier {
 
     if (uid != null) {
       try {
+        final newBalance = _balance - amount;
+        await SupabaseService.client
+            .from('profiles')
+            .update({'wallet_balance': newBalance})
+            .eq('id', uid);
+
+        final txRef = 'BGT-LOCK-${_uuid.v4().substring(0, 8).toUpperCase()}';
+        await SupabaseService.client.from('transactions').insert({
+          'profile_id': uid,
+          'title': 'Budget Locked: $title',
+          'subtitle': 'Locked sum for $serviceType',
+          'amount': -amount,
+          'category': 'wallet',
+          'status': 'success',
+          'reference': txRef,
+          'provider': 'System',
+        });
+
         await SupabaseService.client.from('budgets').insert(newBudget.toJson());
+        
+        _balance = newBalance;
         await _syncWithSupabase();
         _isSyncing = false;
         notifyListeners();
@@ -1271,7 +1455,20 @@ class WalletProvider extends ChangeNotifier {
     }
 
     // Local Fallback
+    _balance -= amount;
     _budgets.insert(0, newBudget);
+    final tx = TransactionModel(
+      id: _uuid.v4(),
+      title: 'Budget Locked: $title',
+      subtitle: 'Locked sum for $serviceType',
+      amount: -amount,
+      date: DateTime.now(),
+      category: TransactionCategory.wallet,
+      status: TransactionStatus.success,
+      reference: 'BGT-LOCK-${_uuid.v4().substring(0, 8).toUpperCase()}',
+      provider: 'System',
+    );
+    _transactions.insert(0, tx);
     await _saveLocalState();
     _isSyncing = false;
     notifyListeners();
@@ -1287,11 +1484,43 @@ class WalletProvider extends ChangeNotifier {
 
     if (uid != null) {
       try {
-        await SupabaseService.client
+        final budgetData = await SupabaseService.client
             .from('budgets')
-            .update({'status': 'cancelled'})
+            .select('amount, title')
             .eq('id', budgetId)
-            .eq('profile_id', uid);
+            .maybeSingle();
+
+        if (budgetData != null) {
+          final double refundAmount = (budgetData['amount'] as num).toDouble();
+          final String bTitle = budgetData['title'] ?? 'Budget';
+
+          final newBalance = _balance + refundAmount;
+          await SupabaseService.client
+              .from('profiles')
+              .update({'wallet_balance': newBalance})
+              .eq('id', uid);
+
+          final txRef = 'BGT-RFD-${_uuid.v4().substring(0, 8).toUpperCase()}';
+          await SupabaseService.client.from('transactions').insert({
+            'profile_id': uid,
+            'title': 'Budget Unlocked: $bTitle',
+            'subtitle': 'Refunded locked budget sum',
+            'amount': refundAmount,
+            'category': 'wallet',
+            'status': 'success',
+            'reference': txRef,
+            'provider': 'System',
+          });
+
+          await SupabaseService.client
+              .from('budgets')
+              .update({'status': 'cancelled'})
+              .eq('id', budgetId)
+              .eq('profile_id', uid);
+
+          _balance = newBalance;
+        }
+
         await _syncWithSupabase();
         _isSyncing = false;
         notifyListeners();
@@ -1305,22 +1534,38 @@ class WalletProvider extends ChangeNotifier {
     final index = _budgets.indexWhere((element) => element.id == budgetId);
     if (index != -1) {
       final b = _budgets[index];
-      _budgets[index] = BudgetModel(
-        id: b.id,
-        profileId: b.profileId,
-        title: b.title,
-        amount: b.amount,
-        serviceType: b.serviceType,
-        providerName: b.providerName,
-        target: b.target,
-        variationCode: b.variationCode,
-        isAutomatic: b.isAutomatic,
-        frequency: b.frequency,
-        nextRunDate: b.nextRunDate,
-        status: 'cancelled',
-        createdAt: b.createdAt,
-      );
-      await _saveLocalState();
+      if (b.status == 'active') {
+        _balance += b.amount;
+        final tx = TransactionModel(
+          id: _uuid.v4(),
+          title: 'Budget Unlocked: ${b.title}',
+          subtitle: 'Refunded locked budget sum',
+          amount: b.amount,
+          date: DateTime.now(),
+          category: TransactionCategory.wallet,
+          status: TransactionStatus.success,
+          reference: 'BGT-LOCK-${_uuid.v4().substring(0, 8).toUpperCase()}',
+          provider: 'System',
+        );
+        _transactions.insert(0, tx);
+
+        _budgets[index] = BudgetModel(
+          id: b.id,
+          profileId: b.profileId,
+          title: b.title,
+          amount: b.amount,
+          serviceType: b.serviceType,
+          providerName: b.providerName,
+          target: b.target,
+          variationCode: b.variationCode,
+          isAutomatic: b.isAutomatic,
+          frequency: b.frequency,
+          nextRunDate: b.nextRunDate,
+          status: 'cancelled',
+          createdAt: b.createdAt,
+        );
+        await _saveLocalState();
+      }
     }
     _isSyncing = false;
     notifyListeners();

@@ -9,9 +9,13 @@ import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
+import 'package:mspay/core/presentation/widgets/cashback_toggle_widget.dart';
+
+import 'package:mspay/features/wallet/data/models/budget_model.dart';
 
 class BettingScreen extends StatefulWidget {
-  const BettingScreen({super.key});
+  final BudgetModel? budget;
+  const BettingScreen({super.key, this.budget});
 
   @override
   State<BettingScreen> createState() => _BettingScreenState();
@@ -28,6 +32,7 @@ class _BettingScreenState extends State<BettingScreen> {
   String? _verifiedCustomerName;
   String? _validationError;
   bool _isPaying = false;
+  bool _useCashback = false;
 
   final Map<String, String> _providerCodes = {
     'BetKing': 'betking',
@@ -113,18 +118,40 @@ class _BettingScreenState extends State<BettingScreen> {
     }
 
     final fee = walletProvider.cableFee; // Reuse same vending fee or config
-    final totalDebit = amount + fee;
+    final double totalDebit = amount + fee;
+    final double cashbackApplied = _useCashback ? (totalDebit < walletProvider.cashbackBalance ? totalDebit : walletProvider.cashbackBalance) : 0.0;
+    final double walletDeduction = totalDebit - cashbackApplied;
 
-    if (totalDebit > walletProvider.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient wallet balance.')),
-      );
-      return;
+    if (widget.budget != null) {
+      if (walletDeduction > widget.budget!.amount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient budget pool balance.')),
+        );
+        return;
+      }
+    } else {
+      if (walletDeduction > walletProvider.balance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient wallet balance.')),
+        );
+        return;
+      }
+    }
+
+    final String reasonText;
+    if (widget.budget != null) {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? 'Authorize $_selectedProvider wallet funding of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) paid from budget ${widget.budget!.title}'
+          : 'Authorize $_selectedProvider wallet funding of ₦$totalDebit paid from budget ${widget.budget!.title}';
+    } else {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? 'Authorize $_selectedProvider wallet funding of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) for customer ID ${_customerIdController.text.trim()}'
+          : 'Authorize $_selectedProvider wallet funding of ₦$totalDebit for customer ID ${_customerIdController.text.trim()}';
     }
 
     final authorized = await TransactionSecurityGate.authorize(
       context,
-      reason: 'Authorize $_selectedProvider wallet funding of ₦$totalDebit for customer ID ${_customerIdController.text.trim()}',
+      reason: reasonText,
     );
     if (!authorized) return;
 
@@ -143,47 +170,113 @@ class _BettingScreenState extends State<BettingScreen> {
     );
 
     if (mounted) {
-      BrandedLoadingOverlay.hide(context);
-      setState(() {
-        _isPaying = false;
-      });
+      bool isActuallySuccess = purchaseResult.success;
+      bool isActuallyPending = purchaseResult.isPending;
+      String? actualTransactionId = purchaseResult.transactionId;
+      String? actualError = purchaseResult.error;
+
+      if (purchaseResult.isPending && purchaseResult.transactionId != null && purchaseResult.transactionId!.isNotEmpty) {
+        int attempts = 0;
+        const maxAttempts = 5;
+        bool resolved = false;
+
+        while (attempts < maxAttempts && !resolved) {
+          if (!mounted) break;
+          attempts++;
+          BrandedLoadingOverlay.show(
+            context,
+            message: 'Verifying transaction status (attempt $attempts of $maxAttempts)...',
+          );
+          await Future.delayed(const Duration(seconds: 3));
+          
+          try {
+            final res = await walletProvider.requeryTransaction(purchaseResult.transactionId!);
+            if (res != null) {
+              final status = res['status']?.toString().toLowerCase();
+              final remark = res['remark']?.toString();
+              if (status == 'success') {
+                resolved = true;
+                isActuallySuccess = true;
+                isActuallyPending = false;
+              } else if (status == 'failed') {
+                resolved = true;
+                isActuallySuccess = false;
+                isActuallyPending = false;
+                actualError = remark ?? 'Transaction failed.';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error during status requery: $e');
+          }
+        }
+      }
 
       final String serviceTitle = '$_selectedProvider Wallet Funding';
-      final String serviceDetail = 'ID: ${_customerIdController.text} • ₦${CurrencyFormatter.format(amount)} (Fee: ₦$fee)';
+      final String serviceDetail = 'ID: ${_customerIdController.text} • ${CurrencyFormatter.format(amount)} (Fee: ₦$fee)';
+      final String recipientText = '${_customerIdController.text.trim()} ($_selectedProvider)';
 
-      if (purchaseResult.success) {
+      if (isActuallySuccess) {
         final bool success = await walletProvider.payBill(
           amount: totalDebit,
-          serviceName: serviceTitle,
-          billDetails: serviceDetail,
+          serviceName: widget.budget != null ? widget.budget!.title : serviceTitle,
+          billDetails: widget.budget != null
+              ? '$serviceDetail (Paid from Budget: ${widget.budget!.title})'
+              : (_useCashback && cashbackApplied > 0.0 ? '$serviceDetail (Cashback Applied: ₦$cashbackApplied)' : serviceDetail),
           category: TransactionCategory.bills,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
+          cashbackApplied: cashbackApplied,
+          isBudgetExecution: widget.budget != null,
         );
 
-        if (success && mounted) {
-          ReceiptModal.show(
-            context,
-            serviceTitle: 'Betting Funding',
-            recipient: '${_customerIdController.text} ($_selectedProvider)',
-            amount: amount,
-            transactionId: purchaseResult.transactionId ?? 'CK-UNKNOWN',
-            providerName: _selectedProvider,
-          );
-          _customerIdController.clear();
-          _amountController.clear();
+        if (success) {
+          if (widget.budget != null) {
+            await walletProvider.deductFromBudget(widget.budget!.id, totalDebit);
+          }
         }
-      } else if (purchaseResult.isPending) {
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          if (success) {
+            _customerIdController.clear();
+            _amountController.clear();
+            await showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ReceiptModal(
+                serviceTitle: 'Betting Funding',
+                recipient: recipientText,
+                amount: amount,
+                transactionId: actualTransactionId ?? 'CK-UNKNOWN',
+                providerName: _selectedProvider,
+              ),
+            );
+            if (mounted) {
+              Navigator.of(context).pop(); // Go back to home
+            }
+          }
+        }
+      } else if (isActuallyPending) {
         final ticketId = await walletProvider.logPendingTransaction(
           amount: totalDebit,
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
-          errorReason: purchaseResult.error ?? 'Transaction is pending network operator confirmation.',
-          vendorReference: purchaseResult.transactionId,
+          errorReason: actualError ?? 'Transaction is pending network operator confirmation.',
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
-          PendingDialog.show(
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          await PendingDialog.show(
             context,
             title: 'Transaction Pending',
             message: 'Your betting wallet funding is being processed by the operator. Please do not retry. You can check status in transaction history.',
@@ -191,25 +284,36 @@ class _BettingScreenState extends State<BettingScreen> {
           );
           _customerIdController.clear();
           _amountController.clear();
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       } else {
-        final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
+        final errorMsg = actualError ?? 'Transaction failed. Please try again.';
         final ticketId = await walletProvider.logFailedTransaction(
           amount: totalDebit,
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
           errorReason: errorMsg,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
-          FailureDialog.show(
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          await FailureDialog.show(
             context,
             title: 'Funding Failed',
             message: errorMsg,
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       }
     }
@@ -232,6 +336,29 @@ class _BettingScreenState extends State<BettingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.budget != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLime.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accentLime.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.briefcase, color: AppColors.primaryForest),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '💼 Paying from budget: ${widget.budget!.title} (Available: ₦${widget.budget!.amount})',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Text(
                 'Select Provider',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -387,24 +514,54 @@ class _BettingScreenState extends State<BettingScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isPaying ? null : () => _submitPayment(walletProvider),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryForest,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Fund Wallet',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final double amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+                  final double fee = walletProvider.cableFee;
+                  final double totalAmount = amount == 0.0 ? 0.0 : amount + fee;
+
+                  final double cashbackApplied = _useCashback 
+                      ? (totalAmount < walletProvider.cashbackBalance ? totalAmount : walletProvider.cashbackBalance)
+                      : 0.0;
+                  final double walletDeduction = totalAmount - cashbackApplied;
+
+                  return Column(
+                    children: [
+                      if (_isVerified && totalAmount > 0.0) ...[
+                        CashbackToggleWidget(
+                          totalAmount: totalAmount,
+                          cashbackBalance: walletProvider.cashbackBalance,
+                          value: _useCashback,
+                          onChanged: (val) {
+                            setState(() {
+                              _useCashback = val;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isPaying || !_isVerified ? null : () => _submitPayment(walletProvider),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryForest,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            'Fund Wallet (${CurrencyFormatter.format(walletDeduction)})',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
               ),
             ],
           ),

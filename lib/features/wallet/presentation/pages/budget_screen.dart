@@ -9,6 +9,12 @@ import 'package:mspay/features/wallet/data/models/budget_model.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
+import 'package:mspay/features/utilities/presentation/pages/airtime_data_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/electricity_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/cable_tv_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/waec_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/jamb_screen.dart';
+import 'package:mspay/features/utilities/presentation/pages/betting_screen.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -28,6 +34,41 @@ class _BudgetScreenState extends State<BudgetScreen> {
   }
 
   Future<void> _handleExecuteManual(BuildContext context, WalletProvider walletProvider, BudgetModel budget) async {
+    if (!budget.isAutomatic) {
+      Widget targetScreen;
+      switch (budget.serviceType) {
+        case 'Data':
+          targetScreen = AirtimeDataScreen(isData: true, budget: budget);
+          break;
+        case 'Cable TV':
+          targetScreen = CableTvScreen(budget: budget);
+          break;
+        case 'Electricity':
+          targetScreen = ElectricityScreen(budget: budget);
+          break;
+        case 'Betting':
+          targetScreen = BettingScreen(budget: budget);
+          break;
+        case 'WAEC':
+          targetScreen = WaecScreen(budget: budget);
+          break;
+        case 'JAMB':
+          targetScreen = JambScreen(budget: budget);
+          break;
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unknown service type for budget.')),
+          );
+          return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => targetScreen),
+      );
+      return;
+    }
+
     if (budget.target == null || budget.target!.isEmpty || budget.providerName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Target details are incomplete. Please edit or recreate budget.')),
@@ -48,7 +89,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Subscription'),
-        content: Text('Do you want to execute subscription for ${budget.title} now? ₦${CurrencyFormatter.format(spendAmount)} will be paid and deducted from this budget.'),
+        content: Text('Do you want to execute subscription for ${budget.title} now? ${CurrencyFormatter.format(spendAmount)} will be paid and deducted from this budget.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Pay Now')),
@@ -77,6 +118,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
           billDetails: 'Budget Vending: ${budget.serviceType} • Target: ${budget.target}',
           category: TransactionCategory.bills,
           vendorReference: purchaseResult.transactionId,
+          baseAmount: spendAmount,
+          serviceType: budget.serviceType,
+          providerName: budget.providerName,
+          isBudgetExecution: true,
         );
 
         if (paySuccess) {
@@ -107,7 +152,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Budget'),
-        content: Text('Are you sure you want to cancel ${budget.title}? The locked sum of ₦${CurrencyFormatter.format(budget.amount)} will be returned to your available balance.'),
+        content: Text('Are you sure you want to cancel ${budget.title}? The locked sum of ${CurrencyFormatter.format(budget.amount)} will be returned to your available balance.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes, Unlock')),
@@ -184,7 +229,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '₦${CurrencyFormatter.format(walletProvider.lockedBudgetBalance)}',
+                      CurrencyFormatter.format(walletProvider.lockedBudgetBalance),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -204,7 +249,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '₦${CurrencyFormatter.format(walletProvider.availableBalance)}',
+                              CurrencyFormatter.format(walletProvider.availableBalance),
                               style: const TextStyle(color: AppColors.accentLime, fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -218,7 +263,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '₦${CurrencyFormatter.format(walletProvider.balance)}',
+                              CurrencyFormatter.format(walletProvider.availableBalance + walletProvider.lockedBudgetBalance),
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                             ),
                           ],
@@ -304,7 +349,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '₦${CurrencyFormatter.format(budget.amount)}',
+                                  CurrencyFormatter.format(budget.amount),
                                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primaryForest),
                                 ),
                               ],
@@ -387,7 +432,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '₦${CurrencyFormatter.format(budget.amount)}',
+                            CurrencyFormatter.format(budget.amount),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -782,8 +827,38 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Target / Phone Destination (Render early to trigger auto-detection)
-              if (_serviceType == 'Data' || _serviceType == 'Electricity' || _serviceType == 'Betting' || _isAutomatic) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Automatic Renewal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: const Text('Vends service automatically when time comes'),
+                value: _isAutomatic,
+                onChanged: (val) {
+                  setState(() {
+                    _isAutomatic = val;
+                  });
+                },
+              ),
+              if (_isAutomatic) ...[
+                const SizedBox(height: 16),
+                const Text('Vending Frequency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _frequency,
+                  dropdownColor: _ddColor,
+                  style: _ddStyle,
+                  decoration: const InputDecoration(prefixIcon: Icon(LucideIcons.calendar)),
+                  items: ['daily', 'weekly', 'monthly'].map((e) {
+                    return DropdownMenuItem<String>(value: e, child: Text(e.toUpperCase()));
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _frequency = val;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
                 const Text('Destination Target ID (Phone / Meter / Wallet ID)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -800,7 +875,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
               ],
 
               // Dynamic fields based on service type selection
-              if (_serviceType == 'Data') ...[
+              if (_isAutomatic && _serviceType == 'Data') ...[
                 const Text('Data Network Provider', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -849,7 +924,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                     items: packagesList.map((pkg) {
                       return DropdownMenuItem<Map<String, dynamic>>(
                         value: pkg,
-                        child: Text('${pkg['name']} (₦${CurrencyFormatter.format(pkg['amount'])})'),
+                        child: Text('${pkg['name']} (${CurrencyFormatter.format(pkg['amount'])})'),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -863,7 +938,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 ],
               ],
 
-              if (_serviceType == 'Cable TV') ...[
+              if (_isAutomatic && _serviceType == 'Cable TV') ...[
                 const Text('Cable TV Biller', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -912,7 +987,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                     items: packagesList.map((pkg) {
                       return DropdownMenuItem<Map<String, dynamic>>(
                         value: pkg,
-                        child: Text('${pkg['name']} (₦${CurrencyFormatter.format(pkg['amount'])})'),
+                        child: Text('${pkg['name']} (${CurrencyFormatter.format(pkg['amount'])})'),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -926,7 +1001,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 ],
               ],
 
-              if (_serviceType == 'Electricity') ...[
+              if (_isAutomatic && _serviceType == 'Electricity') ...[
                 const Text('Electricity Biller', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -974,7 +1049,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 const SizedBox(height: 16),
               ],
 
-              if (_serviceType == 'Betting') ...[
+              if (_isAutomatic && _serviceType == 'Betting') ...[
                 const Text('Betting Company', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -1002,7 +1077,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 const SizedBox(height: 16),
               ],
 
-              if (_serviceType == 'WAEC') ...[
+              if (_isAutomatic && _serviceType == 'WAEC') ...[
                 const Text('Exam Package', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Map<String, dynamic>>(
@@ -1014,7 +1089,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                   items: _waecPackages.map((pkg) {
                     return DropdownMenuItem<Map<String, dynamic>>(
                       value: pkg,
-                      child: Text('${pkg['name']} (₦${CurrencyFormatter.format(pkg['amount'])})'),
+                      child: Text('${pkg['name']} (${CurrencyFormatter.format(pkg['amount'])})'),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -1027,7 +1102,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 const SizedBox(height: 16),
               ],
 
-              if (_serviceType == 'JAMB') ...[
+              if (_isAutomatic && _serviceType == 'JAMB') ...[
                 const Text('Exam Package', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Map<String, dynamic>>(
@@ -1039,7 +1114,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                   items: _jambPackages.map((pkg) {
                     return DropdownMenuItem<Map<String, dynamic>>(
                       value: pkg,
-                      child: Text('${pkg['name']} (₦${CurrencyFormatter.format(pkg['amount'])})'),
+                      child: Text('${pkg['name']} (${CurrencyFormatter.format(pkg['amount'])})'),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -1080,7 +1155,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                   if (_selectedPackage != null) {
                     final pkgAmount = _selectedPackage!['amount'] as double;
                     if (val < pkgAmount) {
-                      return 'Must lock at least package price (₦${CurrencyFormatter.format(pkgAmount)})';
+                      return 'Must lock at least package price (${CurrencyFormatter.format(pkgAmount)})';
                     }
                   }
                   return null;
@@ -1101,7 +1176,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '₦${CurrencyFormatter.format(_selectedPackage!['amount'])} will be deducted from this budget per vending execution.',
+                          '${CurrencyFormatter.format(_selectedPackage!['amount'])} will be deducted from this budget per vending execution.',
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryForest),
                         ),
                       ),
@@ -1110,39 +1185,6 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 ),
               ],
               const SizedBox(height: 16),
-
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Automatic Renewal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: const Text('Vends service automatically when time comes'),
-                value: _isAutomatic,
-                onChanged: (val) {
-                  setState(() {
-                    _isAutomatic = val;
-                  });
-                },
-              ),
-              if (_isAutomatic) ...[
-                const SizedBox(height: 16),
-                const Text('Vending Frequency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _frequency,
-                  dropdownColor: _ddColor,
-                  style: _ddStyle,
-                  decoration: const InputDecoration(prefixIcon: Icon(LucideIcons.calendar)),
-                  items: ['daily', 'weekly', 'monthly'].map((e) {
-                    return DropdownMenuItem<String>(value: e, child: Text(e.toUpperCase()));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _frequency = val;
-                      });
-                    }
-                  },
-                ),
-              ],
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

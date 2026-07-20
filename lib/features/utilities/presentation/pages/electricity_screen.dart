@@ -9,9 +9,13 @@ import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
+import 'package:mspay/core/presentation/widgets/cashback_toggle_widget.dart';
+
+import 'package:mspay/features/wallet/data/models/budget_model.dart';
 
 class ElectricityScreen extends StatefulWidget {
-  const ElectricityScreen({super.key});
+  final BudgetModel? budget;
+  const ElectricityScreen({super.key, this.budget});
 
   @override
   State<ElectricityScreen> createState() => _ElectricityScreenState();
@@ -31,6 +35,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
   String? _verifiedAddress;
   String? _validationError;
   bool _isPaying = false;
+  bool _useCashback = false;
 
   final Map<String, String> _discos = {
     'IKEDC (Ikeja Electric)': 'ikeja-electric',
@@ -138,18 +143,40 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     final double baseAmount = double.parse(_amountController.text.trim());
     final double amount = walletProvider.getElectricityPrice(baseAmount);
     final fee = walletProvider.electricityFee;
-    final totalDebit = amount + fee;
+    final double totalDebit = amount + fee;
+    final double cashbackApplied = _useCashback ? (totalDebit < walletProvider.cashbackBalance ? totalDebit : walletProvider.cashbackBalance) : 0.0;
+    final double walletDeduction = totalDebit - cashbackApplied;
 
-    if (totalDebit > walletProvider.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient wallet balance.')),
-      );
-      return;
+    if (widget.budget != null) {
+      if (walletDeduction > widget.budget!.amount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient budget pool balance.')),
+        );
+        return;
+      }
+    } else {
+      if (walletDeduction > walletProvider.balance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient wallet balance.')),
+        );
+        return;
+      }
+    }
+
+    final String reasonText;
+    if (widget.budget != null) {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? 'Authorize electricity payment of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) paid from budget ${widget.budget!.title}'
+          : 'Authorize electricity payment of ₦$totalDebit paid from budget ${widget.budget!.title}';
+    } else {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? 'Authorize electricity payment of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) for meter ${_meterController.text.trim()}'
+          : 'Authorize electricity payment of ₦$totalDebit for meter ${_meterController.text.trim()}';
     }
 
     final authorized = await TransactionSecurityGate.authorize(
       context,
-      reason: 'Authorize electricity payment of ₦$totalDebit for meter ${_meterController.text.trim()}',
+      reason: reasonText,
     );
     if (!authorized) return;
 
@@ -166,19 +193,73 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
     );
 
     if (mounted) {
-      if (purchaseResult.success) {
+      bool isActuallySuccess = purchaseResult.success;
+      bool isActuallyPending = purchaseResult.isPending;
+      String? actualTransactionId = purchaseResult.transactionId;
+      String? actualError = purchaseResult.error;
+
+      if (purchaseResult.isPending && purchaseResult.transactionId != null && purchaseResult.transactionId!.isNotEmpty) {
+        int attempts = 0;
+        const maxAttempts = 5;
+        bool resolved = false;
+
+        while (attempts < maxAttempts && !resolved) {
+          if (!mounted) break;
+          attempts++;
+          BrandedLoadingOverlay.show(
+            context,
+            message: 'Verifying transaction status (attempt $attempts of $maxAttempts)...',
+          );
+          await Future.delayed(const Duration(seconds: 3));
+          
+          try {
+            final res = await walletProvider.requeryTransaction(purchaseResult.transactionId!);
+            if (res != null) {
+              final status = res['status']?.toString().toLowerCase();
+              final remark = res['remark']?.toString();
+              if (status == 'success') {
+                resolved = true;
+                isActuallySuccess = true;
+                isActuallyPending = false;
+              } else if (status == 'failed') {
+                resolved = true;
+                isActuallySuccess = false;
+                isActuallyPending = false;
+                actualError = remark ?? 'Transaction failed.';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error during status requery: $e');
+          }
+        }
+      }
+
+      if (isActuallySuccess) {
         final bool success = await walletProvider.payBill(
           amount: totalDebit,
-          serviceName: 'Electricity Bill ($_selectedDisco)',
-          billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee)',
+          serviceName: widget.budget != null ? widget.budget!.title : 'Electricity Bill ($_selectedDisco)',
+          billDetails: widget.budget != null
+              ? 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee) (Paid from Budget: ${widget.budget!.title})'
+              : (_useCashback && cashbackApplied > 0.0
+                  ? 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee) (Cashback Applied: ₦$cashbackApplied)'
+                  : 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName (Incl. Fee: ₦$fee)'),
           category: TransactionCategory.bills,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
+          baseAmount: baseAmount,
+          serviceType: 'electricity',
+          providerName: _discoCode,
+          cashbackApplied: cashbackApplied,
+          isBudgetExecution: widget.budget != null,
         );
 
         if (success) {
-          final earnedPoints = (amount * walletProvider.pointsRate).toInt();
-          if (earnedPoints > 0) {
-            await walletProvider.addLoyaltyPoints(earnedPoints);
+          if (widget.budget != null) {
+            await walletProvider.deductFromBudget(widget.budget!.id, totalDebit);
+          } else {
+            final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+            if (earnedPoints > 0) {
+              await walletProvider.addLoyaltyPoints(earnedPoints);
+            }
           }
         }
 
@@ -189,27 +270,32 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           });
 
           if (success) {
-            ReceiptModal.show(
-              context,
-              serviceTitle: 'Electricity Bill ($_selectedDisco)',
-              recipient: '$_verifiedCustomerName (${_meterController.text})',
-              amount: totalDebit,
-              transactionId: purchaseResult.transactionId ?? 'CK-UNKNOWN',
-              token: purchaseResult.token,
-              providerName: 'ClubKonnect',
+            await showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ReceiptModal(
+                serviceTitle: 'Electricity Bill ($_selectedDisco)',
+                recipient: '$_verifiedCustomerName (${_meterController.text})',
+                amount: totalDebit,
+                transactionId: actualTransactionId ?? 'CK-UNKNOWN',
+                token: purchaseResult.token,
+                providerName: 'ClubKonnect',
+              ),
             );
+            if (mounted) {
+              Navigator.of(context).pop(); // Go back to home
+            }
           }
         }
-      } else {
-        final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
-        
-        final ticketId = await walletProvider.logFailedTransaction(
+      } else if (isActuallyPending) {
+        final ticketId = await walletProvider.logPendingTransaction(
           amount: totalDebit,
           serviceName: 'Electricity Bill ($_selectedDisco)',
           billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
           category: TransactionCategory.bills,
-          errorReason: errorMsg,
-          vendorReference: purchaseResult.transactionId,
+          errorReason: actualError ?? 'Transaction is pending network operator confirmation.',
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
@@ -218,12 +304,43 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
             _isPaying = false;
           });
 
-          FailureDialog.show(
+          await PendingDialog.show(
+            context,
+            title: 'Transaction Pending',
+            message: 'Your payment is being processed by the operator. Please do not retry to avoid duplicate debit. You can check status in transaction history.',
+            ticketId: ticketId ?? '#TKT-UNKNOWN',
+          );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
+        }
+      } else {
+        final errorMsg = actualError ?? 'Transaction failed. Please try again.';
+        
+        final ticketId = await walletProvider.logFailedTransaction(
+          amount: totalDebit,
+          serviceName: 'Electricity Bill ($_selectedDisco)',
+          billDetails: 'Meter: ${_meterController.text} • Customer: $_verifiedCustomerName',
+          category: TransactionCategory.bills,
+          errorReason: errorMsg,
+          vendorReference: actualTransactionId,
+        );
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          await FailureDialog.show(
             context,
             title: 'Payment Failed',
             message: errorMsg,
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       }
     }
@@ -248,6 +365,29 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.budget != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLime.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accentLime.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.briefcase, color: AppColors.primaryForest),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '💼 Paying from budget: ${widget.budget!.title} (Available: ₦${widget.budget!.amount})',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               // Info note about validation
               Container(
                 padding: const EdgeInsets.all(14),
@@ -435,8 +575,15 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                           : Colors.grey.shade100),
                 ),
                 validator: (val) {
-                  if (val == null || double.tryParse(val) == null || double.parse(val) < 500) {
-                    return 'Minimum amount is ₦500';
+                  if (val == null || double.tryParse(val) == null) {
+                    return 'Please enter a valid amount';
+                  }
+                  final parsedVal = double.parse(val);
+                  if (parsedVal < 50) {
+                    return 'Minimum amount is ₦50';
+                  }
+                  if (parsedVal > 200000) {
+                    return 'Maximum amount is ₦200,000';
                   }
                   return null;
                 },
@@ -512,36 +659,69 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                 ),
               ],
 
-              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final double baseAmount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+                  final double amount = walletProvider.getElectricityPrice(baseAmount);
+                  final double fee = walletProvider.electricityFee;
+                  final double totalAmount = baseAmount == 0.0 ? 0.0 : amount + fee;
 
-              // Pay Bill Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isPaying || !_isVerified ? null : () => _submitPayment(walletProvider),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryForest,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isPaying
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.zap),
-                            SizedBox(width: 8),
-                            Text('Confirm Payment'),
-                          ],
+                  final double cashbackApplied = _useCashback 
+                      ? (totalAmount < walletProvider.cashbackBalance ? totalAmount : walletProvider.cashbackBalance)
+                      : 0.0;
+                  final double walletDeduction = totalAmount - cashbackApplied;
+
+                  return Column(
+                    children: [
+                      if (_isVerified && totalAmount > 0.0) ...[
+                        CashbackToggleWidget(
+                          totalAmount: totalAmount,
+                          cashbackBalance: walletProvider.cashbackBalance,
+                          value: _useCashback,
+                          onChanged: (val) {
+                            setState(() {
+                              _useCashback = val;
+                            });
+                          },
                         ),
-                ),
+                        const SizedBox(height: 12),
+                      ],
+                      // Pay Bill Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _isPaying || !_isVerified ? null : () => _submitPayment(walletProvider),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryForest,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: _isPaying
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(LucideIcons.zap),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _isVerified && totalAmount > 0.0
+                                          ? 'Confirm Payment (${CurrencyFormatter.format(walletDeduction)})'
+                                          : 'Confirm Payment',
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
               ),
               const SizedBox(height: 12),
               Center(

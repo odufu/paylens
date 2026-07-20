@@ -12,6 +12,7 @@ import 'package:mspay/features/wallet/presentation/pages/transaction_history_scr
 import 'package:mspay/features/chatbot/presentation/pages/chatbot_screen.dart';
 import 'package:mspay/features/profile/presentation/pages/profile_screen.dart';
 import 'package:mspay/core/presentation/pages/coming_soon_screen.dart';
+import 'package:mspay/features/chatbot/presentation/state/chat_provider.dart';
 
 class MainNavigationHolder extends StatefulWidget {
   const MainNavigationHolder({super.key});
@@ -51,6 +52,7 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 900;
     final authProvider = Provider.of<AuthProvider>(context);
+    final chatProvider = Provider.of<ChatProvider>(context);
 
     if (isDesktop) {
       return Scaffold(
@@ -96,9 +98,13 @@ class MainNavigationHolderState extends State<MainNavigationHolder> {
                 );
               },
               backgroundColor: AppColors.primaryForest,
-              child: const Icon(
-                LucideIcons.messageSquare,
-                color: AppColors.accentLime,
+              child: Badge(
+                isLabelVisible: chatProvider.hasUnreadMessages,
+                backgroundColor: AppColors.errorRed,
+                child: const Icon(
+                  LucideIcons.messageSquare,
+                  color: AppColors.accentLime,
+                ),
               ),
             )
           : null,

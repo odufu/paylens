@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mspay/core/services/supabase_service.dart';
@@ -11,15 +12,25 @@ class ChatProvider extends ChangeNotifier {
   final List<ChatMessageModel> _messages = [];
   bool _isTyping = false;
 
+  bool _isAgentMode = false;
+  String? _activeTicketId;
+  StreamSubscription? _streamSub;
+  StreamSubscription? _ticketUnreadSub;
+  bool _hasUnreadMessages = false;
+
   List<ChatMessageModel> get messages => _messages;
   bool get isTyping => _isTyping;
+  bool get isAgentMode => _isAgentMode;
+  String? get activeTicketId => _activeTicketId;
+  bool get hasUnreadMessages => _hasUnreadMessages;
 
   ChatProvider(this._chatRepository) {
-    _sendWelcomeMessage();
     // Reset conversation when user changes
     SupabaseService.client.auth.onAuthStateChange.listen((data) {
-      clearChat();
+      disconnectLiveAgent();
+      startUnreadListener();
     });
+    startUnreadListener();
   }
 
   String _getUserName() {
@@ -30,31 +41,174 @@ class ChatProvider extends ChangeNotifier {
     return 'Darlington';
   }
 
-  /// Sends the initial greeting from the chatbot
-  void _sendWelcomeMessage() {
-    final userName = _getUserName();
-    _messages.add(
-      ChatMessageModel(
-        id: _uuid.v4(),
-        text: 'Hello $userName! Welcome to Pay Lenses support. I am your Customer Care assistant. How can I help you today?',
-        isUser: false,
-        timestamp: DateTime.now(),
-        quickReplies: [
-          'Verify Transaction Status',
-          'Report Technical Issue',
-          'Paystack Info',
-          'VTPass Utilities Info',
-          'Talk to an Agent'
-        ],
-      ),
-    );
+  /// Sends a message from the user directly to the live admin support chat
+  Future<void> sendMessage(String text) async {
+    await sendLiveMessage(text);
   }
 
-  /// Sends a message from the user and triggers AI/scripted response
-  Future<void> sendMessage(String text) async {
+  void startUnreadListener() {
+    final uid = SupabaseService.client.auth.currentUser?.id;
+    if (uid == null) {
+      _hasUnreadMessages = false;
+      notifyListeners();
+      return;
+    }
+
+    _ticketUnreadSub?.cancel();
+    _ticketUnreadSub = SupabaseService.client
+        .from('support_tickets')
+        .stream(primaryKey: ['id'])
+        .eq('profile_id', uid)
+        .listen((data) {
+          if (data.isNotEmpty) {
+            final hasUnread = data.any((row) => (row['user_unread'] as bool? ?? false) && row['status'] == 'escalated');
+            if (_hasUnreadMessages != hasUnread) {
+              _hasUnreadMessages = hasUnread;
+              notifyListeners();
+            }
+          }
+        });
+  }
+
+  Future<void> connectToLiveAgent() async {
+    final uid = SupabaseService.client.auth.currentUser?.id;
+    if (uid == null) return;
+
+    _isTyping = true;
+    notifyListeners();
+
+    try {
+      // 1. Check for existing escalated Live Chat ticket
+      final existing = await SupabaseService.client
+          .from('support_tickets')
+          .select()
+          .eq('profile_id', uid)
+          .eq('title', 'Live Support Chat')
+          .eq('status', 'escalated')
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      String ticketId;
+      if (existing != null && existing['id'] != null) {
+        ticketId = existing['id'];
+      } else {
+        ticketId = _generateTicketId();
+        await SupabaseService.client.from('support_tickets').insert({
+          'id': ticketId,
+          'profile_id': uid,
+          'title': 'Live Support Chat',
+          'description': 'Real-time conversation with customer',
+          'status': 'escalated',
+          'admin_unread': true,
+          'user_unread': false,
+        });
+      }
+
+      _activeTicketId = ticketId;
+      _isAgentMode = true;
+
+      // 2. Fetch existing messages
+      final msgRes = await SupabaseService.client
+          .from('support_messages')
+          .select()
+          .eq('ticket_id', ticketId)
+          .order('created_at', ascending: true);
+
+      _messages.clear();
+      
+      final userName = _getUserName();
+      _messages.add(
+        ChatMessageModel(
+          id: _uuid.v4(),
+          text: 'Hello $userName! Welcome to Pay Lenses Live Support. Please type your message below and an admin will respond to you shortly.',
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      if (msgRes != null) {
+        final list = List<Map<String, dynamic>>.from(msgRes);
+        for (final m in list) {
+          _messages.add(
+            ChatMessageModel(
+              id: m['id'] ?? _uuid.v4(),
+              text: m['message'] ?? '',
+              isUser: !(m['is_admin'] as bool),
+              timestamp: m['created_at'] != null ? DateTime.parse(m['created_at'].toString()) : DateTime.now(),
+            ),
+          );
+        }
+      }
+
+      // Mark user unread to false
+      await SupabaseService.client
+          .from('support_tickets')
+          .update({'user_unread': false})
+          .eq('id', ticketId);
+
+      _hasUnreadMessages = false;
+
+      // 3. Subscribe to real-time updates
+      _streamSub?.cancel();
+      _streamSub = SupabaseService.client
+          .from('support_messages')
+          .stream(primaryKey: ['id'])
+          .eq('ticket_id', ticketId)
+          .listen((data) async {
+            if (data.isNotEmpty) {
+              bool newAdminMessageReceived = false;
+              for (final row in data) {
+                final msgId = row['id'];
+                final text = row['message'] ?? '';
+                final isAdminMsg = row['is_admin'] as bool;
+                final createdAt = row['created_at'] != null ? DateTime.parse(row['created_at'].toString()) : DateTime.now();
+
+                final exists = _messages.any((m) => m.id == msgId);
+                if (!exists) {
+                  _messages.add(
+                    ChatMessageModel(
+                      id: msgId,
+                      text: text,
+                      isUser: !isAdminMsg,
+                      timestamp: createdAt,
+                    ),
+                  );
+                  if (isAdminMsg) {
+                    newAdminMessageReceived = true;
+                  }
+                }
+              }
+
+              if (newAdminMessageReceived) {
+                await SupabaseService.client
+                    .from('support_tickets')
+                    .update({'user_unread': false})
+                    .eq('id', ticketId);
+              }
+              
+              _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+              notifyListeners();
+            }
+          });
+
+    } catch (e) {
+      debugPrint('Failed to initialize live agent chat: $e. Falling back to local bot.');
+      _isAgentMode = false;
+    } finally {
+      _isTyping = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendLiveMessage(String text) async {
+    final uid = SupabaseService.client.auth.currentUser?.id;
+    if (uid == null || _activeTicketId == null) return;
+
+    final localMsgId = _uuid.v4();
     _messages.add(
       ChatMessageModel(
-        id: _uuid.v4(),
+        id: localMsgId,
         text: text,
         isUser: true,
         timestamp: DateTime.now(),
@@ -62,140 +216,37 @@ class ChatProvider extends ChangeNotifier {
     );
     notifyListeners();
 
-    // Trigger typing effect and simulated reply
-    _isTyping = true;
-    notifyListeners();
-    
-    // We introduce a minimum delay of 600ms for natural conversational pacing
-    final startTime = DateTime.now();
-
     try {
-      // Pass history excluding the newly added user message
-      final history = _messages.sublist(0, _messages.length - 1);
-      final reply = await _chatRepository.getReply(text, history);
-
-      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
-      if (elapsed < 600) {
-        await Future.delayed(Duration(milliseconds: 600 - elapsed));
-      }
-
-      _isTyping = false;
-      _messages.add(
-        ChatMessageModel(
-          id: _uuid.v4(),
-          text: reply,
-          isUser: false,
-          timestamp: DateTime.now(),
-          quickReplies: [
-            'Verify Transaction Status',
-            'Report Technical Issue',
-            'Paystack Info',
-            'Talk to an Agent',
-            'Back to Main Menu'
-          ],
-        ),
-      );
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Gemini Chatbot failed: $e. Falling back to rule-based responses.');
-      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
-      if (elapsed < 600) {
-        await Future.delayed(Duration(milliseconds: 600 - elapsed));
-      }
-      _isTyping = false;
-      await _processFallbackResponse(text);
-    }
-  }
-
-  /// Handles bot decision tree based on message and logs to Supabase
-  Future<void> _processFallbackResponse(String userText) async {
-    String replyText = '';
-    List<String>? replies;
-    final userName = _getUserName();
-    final query = userText.toLowerCase();
-
-    if (query.contains('verify transaction') || query.contains('status')) {
-      replyText = 'Which service provider was the transaction made through? Or choose from your options below:';
-      replies = ['Paystack Transfer', 'VTPass Utilities', 'Back to Main Menu'];
-    } else if (query == 'paystack transfer' || query == 'vtpass utilities') {
-      replyText = 'Understood. Please provide the 10-digit reference ID or describe the transaction (e.g. DSTV, Funding). You can also report it directly via the "Report Technical Issue" menu.';
-      replies = ['Report Technical Issue', 'Back to Main Menu'];
-    } else if (query.contains('technical issue') || query.contains('report')) {
-      replyText = 'We apologize for the inconvenience. To escalate this to engineering, please select which transaction has issues, or type details:';
-      replies = [
-        'Report DSTV Premium (#1)',
-        'Report Wallet Funding (#2)',
-        'Report MTN Airtime (#3)',
-        'Something else'
-      ];
-    } else if (query.contains('dstv') || query.contains('report dstv premium')) {
-      final ticketId = _generateTicketId();
-      await _logTicketToSupabase(ticketId, 'DSTV Subscription', 'Customer reported issues with DSTV Premium Package');
-      replyText = 'Thank you $userName. A technical ticket has been created for the engineering team regarding your DSTV Subscription issue.\n\n**Ticket ID**: $ticketId\n**Provider**: VTPass\n**Status**: Escalated to Engineering\n\nWe will notify you within 15 minutes.';
-      replies = ['Back to Main Menu'];
-    } else if (query.contains('funding') || query.contains('report wallet funding')) {
-      final ticketId = _generateTicketId();
-      await _logTicketToSupabase(ticketId, 'Wallet Funding', 'Customer reported issues with Paystack Wallet Funding');
-      replyText = 'Thank you $userName. A ticket has been created for the engineering team regarding your Wallet Funding transaction.\n\n**Ticket ID**: $ticketId\n**Provider**: Paystack\n**Status**: Escalated to Engineering\n\nWe will review the bank settlement records and notify you.';
-      replies = ['Back to Main Menu'];
-    } else if (query.contains('mtn') || query.contains('report mtn airtime')) {
-      final ticketId = _generateTicketId();
-      await _logTicketToSupabase(ticketId, 'MTN Airtime', 'Customer reported issues with MTN Airtime top-up');
-      replyText = 'Thank you $userName. A ticket has been created for the engineering team regarding your MTN Airtime transaction.\n\n**Ticket ID**: $ticketId\n**Provider**: VTPass\n**Status**: Escalated to Engineering\n\nWe will check the network delivery logs and update you.';
-      replies = ['Back to Main Menu'];
-    } else if (query.contains('paystack info')) {
-      replyText = 'Paystack is our primary wallet provider. It generates dedicated virtual bank accounts for each user (e.g. Wema or Titan Trust Bank account numbers) which settle deposits instantly to your Pay Lenses wallet.';
-      replies = ['Check Wallet Balance', 'Back to Main Menu'];
-    } else if (query.contains('vtpass utilities info')) {
-      replyText = 'VTPass is our billing partner. We route payments for airtime top-ups, internet data subscription, electricity bills, and Cable TV packages (DSTV, GOtv, StarTimes) securely via their API.';
-      replies = ['Back to Main Menu'];
-    } else if (query.contains('agent') || query.contains('talk to')) {
-      replyText = 'We are putting you in touch with a Pay Lenses Support Agent. A representative will join this chat in about 2 minutes. Please remain online.';
-      replies = ['Cancel Call', 'Back to Main Menu'];
-    } else if (query.contains('main menu') || query.contains('back to') || query.contains('menu')) {
-      replyText = 'Sure. Here are the main options. How can I help you today?';
-      replies = [
-        'Verify Transaction Status',
-        'Report Technical Issue',
-        'Paystack Info',
-        'VTPass Utilities Info',
-        'Talk to an Agent'
-      ];
-    } else {
-      replyText = 'I am not sure I understand that query. You can choose from the options below or ask to talk to an agent.';
-      replies = [
-        'Report Technical Issue',
-        'Talk to an Agent',
-        'Back to Main Menu'
-      ];
-    }
-
-    _messages.add(
-      ChatMessageModel(
-        id: _uuid.v4(),
-        text: replyText,
-        isUser: false,
-        timestamp: DateTime.now(),
-        quickReplies: replies,
-      ),
-    );
-    notifyListeners();
-  }
-
-  Future<void> _logTicketToSupabase(String ticketId, String title, String description) async {
-    final uid = SupabaseService.client.auth.currentUser?.id;
-    if (uid == null) return;
-    try {
-      await SupabaseService.client.from('support_tickets').insert({
-        'id': ticketId,
-        'profile_id': uid,
-        'title': title,
-        'description': description,
-        'status': 'escalated',
+      await SupabaseService.client.from('support_messages').insert({
+        'id': localMsgId,
+        'ticket_id': _activeTicketId,
+        'sender_id': uid,
+        'message': text,
+        'is_admin': false,
       });
+
+      await SupabaseService.client.from('support_tickets').update({
+        'admin_unread': true,
+        'user_unread': false,
+      }).eq('id', _activeTicketId!);
     } catch (e) {
-      debugPrint('Error inserting support ticket to Supabase: $e');
+      debugPrint('Error sending live message to Supabase: $e');
     }
+  }
+
+  void disconnectLiveAgent() {
+    _streamSub?.cancel();
+    _streamSub = null;
+    _ticketUnreadSub?.cancel();
+    _ticketUnreadSub = null;
+    _isAgentMode = false;
+    _activeTicketId = null;
+    clearChat();
+  }
+
+  void clearChat() {
+    _messages.clear();
+    notifyListeners();
   }
 
   String _generateTicketId() {
@@ -203,10 +254,10 @@ class ChatProvider extends ChangeNotifier {
     return '#TKT-$rand';
   }
 
-  /// Reset chatbot history
-  void clearChat() {
-    _messages.clear();
-    _sendWelcomeMessage();
-    notifyListeners();
+  @override
+  void dispose() {
+    _streamSub?.cancel();
+    _ticketUnreadSub?.cancel();
+    super.dispose();
   }
 }

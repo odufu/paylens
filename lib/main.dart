@@ -12,6 +12,7 @@ import 'package:mspay/features/dashboard/presentation/pages/main_navigation_hold
 import 'package:mspay/features/notifications/presentation/state/notification_provider.dart';
 import 'package:mspay/core/services/network_status_provider.dart';
 import 'package:mspay/core/presentation/widgets/network_status_banner.dart';
+import 'package:mspay/features/auth/presentation/pages/resume_session_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,9 +50,11 @@ class PayLensesApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: authProvider.isAuthenticated 
-          ? const MainNavigationHolder() 
-          : const WelcomeScreen(),
+      home: authProvider.isSessionLocked
+          ? const ResumeSessionScreen()
+          : (authProvider.isAuthenticated 
+              ? const MainNavigationHolder() 
+              : const WelcomeScreen()),
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return Stack(

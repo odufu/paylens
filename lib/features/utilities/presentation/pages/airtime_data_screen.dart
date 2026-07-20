@@ -10,18 +10,23 @@ import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
+import 'package:mspay/core/presentation/widgets/cashback_toggle_widget.dart';
+
+import 'package:mspay/features/wallet/data/models/budget_model.dart';
 
 class AirtimeDataScreen extends StatefulWidget {
   final bool isData;
   final String? initialProvider;
   final String? initialCategory;
   final String? initialPackageId;
+  final BudgetModel? budget;
   const AirtimeDataScreen({
     super.key,
     required this.isData,
     this.initialProvider,
     this.initialCategory,
     this.initialPackageId,
+    this.budget,
   });
 
   @override
@@ -41,6 +46,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   String _selectedCategory = 'Monthly';
   bool _isLoadingLiveVariations = false;
   List<Map<String, dynamic>>? _liveVariations;
+  bool _useCashback = false;
 
   final List<String> _categories = [
     'Monthly',
@@ -48,6 +54,39 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     'Daily/Weekly',
     'Corporate Gifting',
   ];
+
+  List<String> getAvailableCategories() {
+    final List<String> available = [];
+    final allCats = ['Monthly', 'SME Data', 'Daily/Weekly', 'Corporate Gifting'];
+    
+    for (final cat in allCats) {
+      final list = _getFilteredPackages(overrideCategory: cat);
+      if (list.isNotEmpty) {
+        available.add(cat);
+      }
+    }
+    
+    return available.isEmpty ? ['Monthly'] : available;
+  }
+
+  void _autoSelectCheapestCategoryAndPackage() {
+    final available = getAvailableCategories();
+    
+    if (available.contains('Corporate Gifting')) {
+      _selectedCategory = 'Corporate Gifting';
+    } else if (available.contains('SME Data')) {
+      _selectedCategory = 'SME Data';
+    } else if (available.isNotEmpty) {
+      _selectedCategory = available.first;
+    }
+    
+    final packages = _getFilteredPackages();
+    if (packages.isNotEmpty) {
+      _selectedDataPackage = packages.first;
+    } else {
+      _selectedDataPackage = null;
+    }
+  }
 
   final List<Map<String, dynamic>> _providers = [
     {
@@ -91,7 +130,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     }
     
     // 2. Corporate Gifting
-    if (clean.contains('cg') || clean.contains('corporate') || clean.contains('gifting')) {
+    if (clean.contains('cg') || clean.contains('corporate') || clean.contains('gifting') || clean.contains('direct')) {
       return 'Corporate Gifting';
     }
     
@@ -128,21 +167,35 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
     return 'Monthly';
   }
 
-  List<Map<String, dynamic>> _getFilteredPackages() {
+  List<Map<String, dynamic>> _getFilteredPackages({String? overrideCategory}) {
     final provider = _selectedProvider.toLowerCase();
-    final rawList = _getRawFilteredPackages(provider);
+    final rawList = _getRawFilteredPackages(provider, overrideCategory: overrideCategory);
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-    return rawList.map((pack) {
+    final resolvedList = rawList.map((pack) {
       final double basePrice = pack['amount'] as double;
+      
+      // Calculate non-discounted price (retail price)
+      final commRates = walletProvider.getCommissionRates(serviceType: 'data', providerName: provider);
+      final double totalCommRate = commRates['total'] ?? 0.0;
+      final double nonDiscountedPrice = double.parse(
+        (basePrice / (1.0 - totalCommRate / 100.0)).toStringAsFixed(2),
+      );
+
       return {
         ...pack,
-        'amount': walletProvider.getDataPrice(basePrice),
-        'baseAmount': basePrice,
+        'amount': walletProvider.getDataPrice(nonDiscountedPrice),
+        'baseAmount': nonDiscountedPrice,
+        'providerBaseAmount': basePrice,
       };
     }).toList();
+
+    // Sort by price ascending (cheapest first)
+    resolvedList.sort((a, b) => (a['amount'] as num).compareTo(b['amount'] as num));
+    return resolvedList;
   }
 
-  List<Map<String, dynamic>> _getRawFilteredPackages(String provider) {
+  List<Map<String, dynamic>> _getRawFilteredPackages(String provider, {String? overrideCategory}) {
+    final targetCategory = overrideCategory ?? _selectedCategory;
 
     if (_liveVariations != null) {
       final List<Map<String, dynamic>> filtered = [];
@@ -151,22 +204,24 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
         final amount = v['variation_amount'] as double;
         final code = v['variation_code'].toString();
 
-        final category = _categorizePlan(name);
+        final planCat = _categorizePlan(name);
         
-        if (category == _selectedCategory) {
+        if (planCat == targetCategory) {
           filtered.add({
             'id': '${provider}-${code}',
             'name': v['name'],
             'amount': amount,
             'variation': code,
-            'duration': _selectedCategory == 'Daily/Weekly' ? 'Short Term' : '30 Days',
+            'duration': targetCategory == 'Daily/Weekly' ? 'Short Term' : '30 Days',
           });
         }
       }
-      return filtered;
+      if (filtered.isNotEmpty) {
+        return filtered;
+      }
     }
 
-    if (_selectedCategory == 'SME Data') {
+    if (targetCategory == 'SME Data') {
       if (provider == 'mtn') {
         return [
           {
@@ -219,7 +274,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       return [];
     }
 
-    if (_selectedCategory == 'Daily/Weekly') {
+    if (targetCategory == 'Daily/Weekly') {
       if (provider == 'mtn') {
         return [
           {
@@ -400,7 +455,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       ];
     }
 
-    if (_selectedCategory == 'Corporate Gifting') {
+    if (targetCategory == 'Corporate Gifting') {
       return [
         {
           'id': '${provider}-cg-1',
@@ -808,10 +863,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
         _isLoadingLiveVariations = false;
         if (variations != null && variations.isNotEmpty) {
           _liveVariations = variations;
-          final packages = _getFilteredPackages();
-          if (packages.isNotEmpty) {
-            _selectedDataPackage = packages.first;
-          }
+          _autoSelectCheapestCategoryAndPackage();
         }
       });
     }
@@ -913,18 +965,47 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
         ? _selectedDataPackage!['amount']
         : walletProvider.getAirtimePrice(baseAmount);
 
-    if (amount > walletProvider.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient wallet balance.')),
-      );
-      return;
+    final double cashbackApplied = _useCashback ? (amount < walletProvider.cashbackBalance ? amount : walletProvider.cashbackBalance) : 0.0;
+    final double walletDeduction = amount - cashbackApplied;
+
+    if (widget.budget != null) {
+      if (walletDeduction > widget.budget!.amount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient budget pool balance.')),
+        );
+        return;
+      }
+    } else {
+      if (walletDeduction > walletProvider.balance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient wallet balance.')),
+        );
+        return;
+      }
+    }
+
+    final String reasonText;
+    if (widget.budget != null) {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? (_isDataTab
+              ? 'Authorize data subscription of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) paid from budget ${widget.budget!.title}'
+              : 'Authorize airtime purchase of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) paid from budget ${widget.budget!.title}')
+          : (_isDataTab
+              ? 'Authorize data subscription of ₦$amount paid from budget ${widget.budget!.title}'
+              : 'Authorize airtime purchase of ₦$amount paid from budget ${widget.budget!.title}');
+    } else {
+      reasonText = _useCashback && cashbackApplied > 0.0
+          ? (_isDataTab
+              ? 'Authorize data subscription of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) to ${_phoneController.text.trim()}'
+              : 'Authorize airtime purchase of ₦$walletDeduction (Subsidized by ₦$cashbackApplied cashback) to ${_phoneController.text.trim()}')
+          : (_isDataTab
+              ? 'Authorize data subscription of ₦$amount to ${_phoneController.text.trim()}'
+              : 'Authorize airtime purchase of ₦$amount to ${_phoneController.text.trim()}');
     }
 
     final authorized = await TransactionSecurityGate.authorize(
       context,
-      reason: _isDataTab
-          ? 'Authorize data subscription of ₦$amount to ${_phoneController.text.trim()}'
-          : 'Authorize airtime purchase of ₦$amount to ${_phoneController.text.trim()}',
+      reason: reasonText,
     );
     if (!authorized) return;
 
@@ -945,16 +1026,25 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       formattedPhone = '0${formattedPhone.substring(3)}';
     }
 
+    final double providerBaseAmount = _isDataTab
+        ? (_selectedDataPackage!['providerBaseAmount'] as num).toDouble()
+        : baseAmount;
+
     final purchaseResult = await VtPassService.purchaseProduct(
       serviceType: _isDataTab ? 'Data' : 'Airtime',
       target: formattedPhone,
-      amount: baseAmount, // VTPass gets the base amount!
+      amount: providerBaseAmount, // Send reseller price to ClubKonnect/VTPass
       providerName: _selectedProvider,
       packageName: _isDataTab ? _selectedDataPackage!['name'] : null,
       variationCode: _isDataTab ? _selectedDataPackage!['variation'] : null,
     );
 
     if (mounted) {
+      bool isActuallySuccess = purchaseResult.success;
+      bool isActuallyPending = purchaseResult.isPending;
+      String? actualTransactionId = purchaseResult.transactionId;
+      String? actualError = purchaseResult.error;
+
       final String serviceTitle = _isDataTab
           ? '$_selectedProvider Data Purchase'
           : '$_selectedProvider Airtime';
@@ -962,19 +1052,66 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           ? '${_selectedDataPackage!['name']} for ${_phoneController.text}'
           : 'Top-up for ${_phoneController.text}';
 
-      if (purchaseResult.success) {
+      if (purchaseResult.isPending && purchaseResult.transactionId != null && purchaseResult.transactionId!.isNotEmpty) {
+        int attempts = 0;
+        const maxAttempts = 5;
+        bool resolved = false;
+
+        while (attempts < maxAttempts && !resolved) {
+          if (!mounted) break;
+          attempts++;
+          BrandedLoadingOverlay.show(
+            context,
+            message: 'Verifying transaction status (attempt $attempts of $maxAttempts)...',
+          );
+          await Future.delayed(const Duration(seconds: 3));
+          
+          try {
+            final res = await walletProvider.requeryTransaction(purchaseResult.transactionId!);
+            if (res != null) {
+              final status = res['status']?.toString().toLowerCase();
+              final remark = res['remark']?.toString();
+              if (status == 'success') {
+                resolved = true;
+                isActuallySuccess = true;
+                isActuallyPending = false;
+              } else if (status == 'failed') {
+                resolved = true;
+                isActuallySuccess = false;
+                isActuallyPending = false;
+                actualError = remark ?? 'Transaction failed.';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error during status requery: $e');
+          }
+        }
+      }
+
+      if (isActuallySuccess) {
         final bool success = await walletProvider.payBill(
           amount: amount,
-          serviceName: serviceTitle,
-          billDetails: serviceDetail,
+          serviceName: widget.budget != null ? widget.budget!.title : serviceTitle,
+          billDetails: widget.budget != null
+              ? '$serviceDetail (Paid from Budget: ${widget.budget!.title})'
+              : (_useCashback && cashbackApplied > 0.0 ? '$serviceDetail (Cashback Applied: ₦$cashbackApplied)' : serviceDetail),
           category: TransactionCategory.bills,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
+          baseAmount: baseAmount,
+          serviceType: _isDataTab ? 'data' : 'airtime',
+          providerName: _selectedProvider,
+          cashbackApplied: cashbackApplied,
+          isBudgetExecution: widget.budget != null,
         );
 
         if (success) {
-          final earnedPoints = (amount * walletProvider.pointsRate).toInt();
-          if (earnedPoints > 0) {
-            await walletProvider.addLoyaltyPoints(earnedPoints);
+          if (widget.budget != null) {
+            await walletProvider.deductFromBudget(widget.budget!.id, amount);
+          } else {
+            final earnedPoints = (amount * walletProvider.pointsRate).toInt();
+            if (earnedPoints > 0) {
+              await walletProvider.addLoyaltyPoints(earnedPoints);
+            }
           }
         }
 
@@ -986,25 +1123,32 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 
           if (success) {
             _saveRecentNumber(_phoneController.text.trim(), _selectedProvider);
-            _selectedDataPackage = _getFilteredPackages().first; // Reset list
-            ReceiptModal.show(
-              context,
-              serviceTitle: _isDataTab ? 'Mobile Data' : 'Airtime Top-up',
-              recipient: _phoneController.text,
-              amount: amount,
-              transactionId: purchaseResult.transactionId ?? 'VTP-UNKNOWN',
-              providerName: _selectedProvider,
+            _selectedDataPackage = _getFilteredPackages().first;
+            await showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ReceiptModal(
+                serviceTitle: _isDataTab ? 'Mobile Data' : 'Airtime Top-up',
+                recipient: _phoneController.text,
+                amount: amount,
+                transactionId: actualTransactionId ?? 'VTP-UNKNOWN',
+                providerName: _selectedProvider,
+              ),
             );
+            if (mounted) {
+              Navigator.of(context).pop(); // Go back to home
+            }
           }
         }
-      } else if (purchaseResult.isPending) {
+      } else if (isActuallyPending) {
         final ticketId = await walletProvider.logPendingTransaction(
           amount: amount,
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
-          errorReason: purchaseResult.error ?? 'Transaction is pending network operator confirmation.',
-          vendorReference: purchaseResult.transactionId,
+          errorReason: actualError ?? 'Transaction is pending network operator confirmation.',
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
@@ -1013,16 +1157,18 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
             _isProcessing = false;
           });
 
-          PendingDialog.show(
+          await PendingDialog.show(
             context,
             title: 'Transaction Pending',
             message: 'Your payment is being processed by the operator. Please do not retry to avoid duplicate debit. You can check status in transaction history.',
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       } else {
-        final errorMsg =
-            purchaseResult.error ?? 'Transaction failed. Please try again.';
+        final errorMsg = actualError ?? 'Transaction failed. Please try again.';
 
         final ticketId = await walletProvider.logFailedTransaction(
           amount: amount,
@@ -1030,7 +1176,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
           errorReason: errorMsg,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
@@ -1039,12 +1185,15 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
             _isProcessing = false;
           });
 
-          FailureDialog.show(
+          await FailureDialog.show(
             context,
             title: 'Payment Failed',
             message: errorMsg,
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       }
     }
@@ -1065,6 +1214,29 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            if (widget.budget != null) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.accentLime.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.accentLime.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.briefcase, color: AppColors.primaryForest),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '💼 Paying from budget: ${widget.budget!.title} (Available: ₦${widget.budget!.amount})',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // Toggle Slider (Airtime vs Data)
             Container(
               color: AppColors.primaryForest,
@@ -1317,10 +1489,15 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                           prefixIcon: Icon(LucideIcons.dollarSign),
                         ),
                         validator: (val) {
-                          if (val == null ||
-                              int.tryParse(val) == null ||
-                              int.parse(val) < 50) {
+                          if (val == null || int.tryParse(val) == null) {
+                            return 'Please enter a valid amount';
+                          }
+                          final parsedVal = int.parse(val);
+                          if (parsedVal < 50) {
                             return 'Minimum recharge is ₦50';
+                          }
+                          if (parsedVal > 200000) {
+                            return 'Maximum recharge is ₦200,000';
                           }
                           return null;
                         },
@@ -1337,56 +1514,75 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
                       const SizedBox(height: 12),
                       SizedBox(
                         height: 38,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _categories.length,
-                          itemBuilder: (context, index) {
-                            final cat = _categories[index];
-                            final bool isSelected = _selectedCategory == cat;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: ChoiceChip(
-                                label: Text(
-                                  cat,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? AppColors.textDark
-                                        : (Theme.of(context).brightness ==
-                                                  Brightness.dark
-                                              ? Colors.white70
-                                              : AppColors.textGrey),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                        child: Builder(
+                          builder: (context) {
+                            final availableCats = getAvailableCategories();
+                            // Safeguard: if _selectedCategory is not in the available categories list, reset it
+                            if (!availableCats.contains(_selectedCategory)) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  setState(() {
+                                    _selectedCategory = availableCats.first;
+                                    final packages = _getFilteredPackages();
+                                    if (packages.isNotEmpty) {
+                                      _selectedDataPackage = packages.first;
+                                    }
+                                  });
+                                }
+                              });
+                            }
+                            return ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: availableCats.length,
+                              itemBuilder: (context, index) {
+                                final cat = availableCats[index];
+                                final bool isSelected = _selectedCategory == cat;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: ChoiceChip(
+                                    label: Text(
+                                      cat,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? AppColors.textDark
+                                            : (Theme.of(context).brightness ==
+                                                      Brightness.dark
+                                                  ? Colors.white70
+                                                  : AppColors.textGrey),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    selected: isSelected,
+                                    selectedColor: AppColors.accentLime,
+                                    backgroundColor:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.04),
+                                    side: BorderSide(
+                                      color: isSelected
+                                          ? AppColors.accentLime
+                                          : (Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? Colors.white12
+                                                : AppColors.textLightGrey
+                                                      .withValues(alpha: 0.5)),
+                                    ),
+                                    onSelected: (selected) {
+                                      if (selected) {
+                                        setState(() {
+                                          _selectedCategory = cat;
+                                          _selectedDataPackage =
+                                              _getFilteredPackages().first;
+                                        });
+                                      }
+                                    },
                                   ),
-                                ),
-                                selected: isSelected,
-                                selectedColor: AppColors.accentLime,
-                                backgroundColor:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : Colors.black.withValues(alpha: 0.04),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? AppColors.accentLime
-                                      : (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.white12
-                                            : AppColors.textLightGrey
-                                                  .withValues(alpha: 0.5)),
-                                ),
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setState(() {
-                                      _selectedCategory = cat;
-                                      _selectedDataPackage =
-                                          _getFilteredPackages().first;
-                                    });
-                                  }
-                                },
-                              ),
+                                );
+                              },
                             );
-                          },
+                          }
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -1596,56 +1792,80 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
               ),
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Submit Purchase Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isProcessing
-                      ? null
-                      : () => _processPayment(walletProvider),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryForest,
-                    foregroundColor: Colors.white,
+          child: Builder(
+            builder: (context) {
+              final double totalAmount = _isDataTab
+                  ? ((_selectedDataPackage?["amount"] ?? 0.0) as num).toDouble()
+                  : walletProvider.getAirtimePrice(double.tryParse(_amountController.text.trim()) ?? 0.0);
+              
+              final double cashbackApplied = _useCashback 
+                  ? (totalAmount < walletProvider.cashbackBalance ? totalAmount : walletProvider.cashbackBalance)
+                  : 0.0;
+              final double walletDeduction = totalAmount - cashbackApplied;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CashbackToggleWidget(
+                    totalAmount: totalAmount,
+                    cashbackBalance: walletProvider.cashbackBalance,
+                    value: _useCashback,
+                    onChanged: (val) {
+                      setState(() {
+                        _useCashback = val;
+                      });
+                    },
                   ),
-                  child: _isProcessing
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(LucideIcons.shoppingBag),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isDataTab
-                                  ? 'Buy Bundle (${CurrencyFormatter.format(_selectedDataPackage?["amount"] ?? 0)})'
-                                  : 'Pay Airtime (${CurrencyFormatter.format(walletProvider.getAirtimePrice(double.tryParse(_amountController.text.trim()) ?? 0.0))})',
+                  const SizedBox(height: 8),
+                  // Submit Purchase Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _processPayment(walletProvider),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryForest,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: _isProcessing
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(LucideIcons.shoppingBag),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isDataTab
+                                      ? 'Buy Bundle (${CurrencyFormatter.format(walletDeduction)})'
+                                      : 'Pay Airtime (${CurrencyFormatter.format(walletDeduction)})',
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  'Available Balance: ${CurrencyFormatter.format(walletProvider.balance)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textGrey,
-                    fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      'Available Balance: ${CurrencyFormatter.format(walletProvider.balance)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textGrey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
           ),
         ),
       ),

@@ -32,21 +32,41 @@ class AuthProvider extends ChangeNotifier {
   bool _biometricsEnabled = false;
   String? _transactionPin;
 
+  bool _isSessionLocked = false;
+  String? _cachedEmail;
+  String? _cachedName;
+  String? _cachedAvatarUrl;
+
   // Getters
   UserEntity? get user => _currentUser;
   bool get isAuthenticated => _currentUser != null;
   bool get isLoading => _isLoading;
   UserProfileEntity? get profile => _userProfile;
 
-  String get userFullName => _userProfile?.fullName ?? 'Darlington Nnamdi';
-  String get userEmail => _currentUser?.email ?? 'darlington@lushfintech.com';
+  bool get isSessionLocked => _isSessionLocked;
+  String? get cachedEmail => _cachedEmail;
+  String? get cachedName => _cachedName;
+  String? get cachedAvatarUrl => _cachedAvatarUrl;
+
+  String get userFullName => _userProfile?.fullName ?? _cachedName ?? 'Darlington Nnamdi';
+  String get userEmail => _currentUser?.email ?? _cachedEmail ?? 'darlington@lushfintech.com';
   String get userId => _currentUser?.id ?? '';
-  String? get avatarUrl => _userProfile?.avatarUrl;
+  String? get avatarUrl => _userProfile?.avatarUrl ?? _cachedAvatarUrl;
   bool get isAdmin => userEmail.toLowerCase().contains('admin') || userEmail.toLowerCase().endsWith('@paylenses.com');
 
   bool get biometricsEnabled => _biometricsEnabled;
   bool get hasTransactionPin => _transactionPin != null && _transactionPin!.isNotEmpty;
   String? get transactionPin => _transactionPin;
+
+  void lockSession() {
+    _isSessionLocked = true;
+    notifyListeners();
+  }
+
+  void unlockSession() {
+    _isSessionLocked = false;
+    notifyListeners();
+  }
 
   AuthProvider({
     required this.signInUseCase,
@@ -121,6 +141,14 @@ class AuthProvider extends ChangeNotifier {
       final avatarUrl = prefs.getString('cached_profile_avatar_url');
       final loyaltyPoints = prefs.getInt('cached_profile_loyalty_points') ?? 0;
 
+      _cachedEmail = prefs.getString('cached_profile_email');
+      _cachedName = fullName;
+      _cachedAvatarUrl = avatarUrl;
+
+      if (_cachedEmail != null) {
+        _isSessionLocked = true;
+      }
+
       _biometricsEnabled = prefs.getBool('biometrics_enabled') ?? false;
       _transactionPin = prefs.getString('transaction_pin');
 
@@ -143,12 +171,20 @@ class AuthProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_profile_id', profile.id);
       await prefs.setString('cached_profile_full_name', profile.fullName);
+      _cachedName = profile.fullName;
       if (profile.avatarUrl != null) {
         await prefs.setString('cached_profile_avatar_url', profile.avatarUrl!);
+        _cachedAvatarUrl = profile.avatarUrl;
       } else {
         await prefs.remove('cached_profile_avatar_url');
+        _cachedAvatarUrl = null;
       }
       await prefs.setInt('cached_profile_loyalty_points', profile.loyaltyPoints);
+      
+      if (_currentUser?.email != null) {
+        await prefs.setString('cached_profile_email', _currentUser!.email!);
+        _cachedEmail = _currentUser!.email;
+      }
     } catch (e) {
       debugPrint('Error caching profile: $e');
     }
@@ -161,8 +197,12 @@ class AuthProvider extends ChangeNotifier {
       await prefs.remove('cached_profile_full_name');
       await prefs.remove('cached_profile_avatar_url');
       await prefs.remove('cached_profile_loyalty_points');
+      await prefs.remove('cached_profile_email');
       await prefs.remove('transaction_pin');
       await prefs.remove('biometrics_enabled');
+      _cachedEmail = null;
+      _cachedName = null;
+      _cachedAvatarUrl = null;
       _transactionPin = null;
       _biometricsEnabled = false;
     } catch (e) {
@@ -267,6 +307,7 @@ class AuthProvider extends ChangeNotifier {
       }
       _currentUser = result.value;
       await _fetchProfile();
+      _isSessionLocked = false; // Unlock locked session
     } finally {
       _setLoading(false);
     }
@@ -299,6 +340,16 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Logs out and clears the cached session details to allow logging in with another account
+  Future<void> loginWithAnotherAccount() async {
+    _isSessionLocked = false;
+    _cachedEmail = null;
+    _cachedName = null;
+    _cachedAvatarUrl = null;
+    await _clearCachedProfile();
+    await signOut();
   }
 
   void _setLoading(bool val) {

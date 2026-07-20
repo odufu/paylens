@@ -357,13 +357,13 @@ class FailureDialog extends StatelessWidget {
     required this.ticketId,
   });
 
-  static void show(
+  static Future<void> show(
     BuildContext context, {
     required String title,
     required String message,
     required String ticketId,
   }) {
-    showDialog(
+    return showDialog(
       context: context,
       builder: (context) => FailureDialog(
         title: title,
@@ -443,13 +443,13 @@ class PendingDialog extends StatelessWidget {
     required this.ticketId,
   });
 
-  static void show(
+  static Future<void> show(
     BuildContext context, {
     required String title,
     required String message,
     required String ticketId,
   }) {
-    showDialog(
+    return showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => PendingDialog(

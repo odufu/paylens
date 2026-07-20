@@ -8,9 +8,13 @@ import 'package:mspay/features/wallet/presentation/state/wallet_provider.dart';
 import 'package:mspay/features/wallet/data/models/transaction_model.dart';
 import 'package:mspay/features/utilities/data/datasources/vtpass_service.dart';
 import 'package:mspay/features/utilities/presentation/widgets/receipt_modal.dart';
+import 'package:mspay/core/presentation/widgets/cashback_toggle_widget.dart';
+
+import 'package:mspay/features/wallet/data/models/budget_model.dart';
 
 class WaecScreen extends StatefulWidget {
-  const WaecScreen({super.key});
+  final BudgetModel? budget;
+  const WaecScreen({super.key, this.budget});
 
   @override
   State<WaecScreen> createState() => _WaecScreenState();
@@ -22,6 +26,7 @@ class _WaecScreenState extends State<WaecScreen> {
 
   String _selectedPackage = 'waecdirect';
   bool _isPaying = false;
+  bool _useCashback = false;
 
   final Map<String, Map<String, dynamic>> _packages = {
     'waecdirect': {
@@ -48,13 +53,24 @@ class _WaecScreenState extends State<WaecScreen> {
     final packageInfo = _packages[_selectedPackage]!;
     final double amount = packageInfo['amount'];
     final fee = walletProvider.cableFee; // standard vending fee
-    final totalDebit = amount + fee;
+    final double totalDebit = amount + fee;
+    final double cashbackApplied = _useCashback ? (totalDebit < walletProvider.cashbackBalance ? totalDebit : walletProvider.cashbackBalance) : 0.0;
+    final double walletDeduction = totalDebit - cashbackApplied;
 
-    if (totalDebit > walletProvider.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient wallet balance.')),
-      );
-      return;
+    if (widget.budget != null) {
+      if (walletDeduction > widget.budget!.amount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient budget pool balance.')),
+        );
+        return;
+      }
+    } else {
+      if (walletDeduction > walletProvider.balance) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient wallet balance.')),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -73,73 +89,152 @@ class _WaecScreenState extends State<WaecScreen> {
     );
 
     if (mounted) {
-      BrandedLoadingOverlay.hide(context);
-      setState(() {
-        _isPaying = false;
-      });
+      bool isActuallySuccess = purchaseResult.success;
+      bool isActuallyPending = purchaseResult.isPending;
+      String? actualTransactionId = purchaseResult.transactionId;
+      String? actualError = purchaseResult.error;
+
+      if (purchaseResult.isPending && purchaseResult.transactionId != null && purchaseResult.transactionId!.isNotEmpty) {
+        int attempts = 0;
+        const maxAttempts = 5;
+        bool resolved = false;
+
+        while (attempts < maxAttempts && !resolved) {
+          if (!mounted) break;
+          attempts++;
+          BrandedLoadingOverlay.show(
+            context,
+            message: 'Verifying transaction status (attempt $attempts of $maxAttempts)...',
+          );
+          await Future.delayed(const Duration(seconds: 3));
+          
+          try {
+            final res = await walletProvider.requeryTransaction(purchaseResult.transactionId!);
+            if (res != null) {
+              final status = res['status']?.toString().toLowerCase();
+              final remark = res['remark']?.toString();
+              if (status == 'success') {
+                resolved = true;
+                isActuallySuccess = true;
+                isActuallyPending = false;
+              } else if (status == 'failed') {
+                resolved = true;
+                isActuallySuccess = false;
+                isActuallyPending = false;
+                actualError = remark ?? 'Transaction failed.';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error during status requery: $e');
+          }
+        }
+      }
 
       final String serviceTitle = packageInfo['name'];
       final String serviceDetail = 'Phone: ${_phoneController.text} • (Incl. Fee: ₦$fee)';
+      final String recipientPhone = _phoneController.text.trim();
 
-      if (purchaseResult.success) {
+      if (isActuallySuccess) {
         final pinDetails = purchaseResult.carddetails ?? purchaseResult.token ?? 'Serial No & PIN sent via SMS';
         final bool success = await walletProvider.payBill(
           amount: totalDebit,
-          serviceName: serviceTitle,
-          billDetails: 'Phone: ${_phoneController.text} • Details: $pinDetails $serviceDetail',
+          serviceName: widget.budget != null ? widget.budget!.title : serviceTitle,
+          billDetails: widget.budget != null
+              ? 'Phone: $recipientPhone • Details: $pinDetails $serviceDetail (Paid from Budget: ${widget.budget!.title})'
+              : (_useCashback && cashbackApplied > 0.0
+                  ? 'Phone: $recipientPhone • Details: $pinDetails $serviceDetail (Cashback Applied: ₦$cashbackApplied)'
+                  : 'Phone: $recipientPhone • Details: $pinDetails $serviceDetail'),
           category: TransactionCategory.bills,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
+          cashbackApplied: cashbackApplied,
+          isBudgetExecution: widget.budget != null,
         );
 
-        if (success && mounted) {
-          ReceiptModal.show(
-            context,
-            serviceTitle: serviceTitle,
-            recipient: _phoneController.text,
-            amount: amount,
-            transactionId: purchaseResult.transactionId ?? 'CK-UNKNOWN',
-            providerName: 'WAEC',
-            token: pinDetails, // Will show up beautifully in receipt token box!
-          );
-          _phoneController.clear();
+        if (success) {
+          if (widget.budget != null) {
+            await walletProvider.deductFromBudget(widget.budget!.id, totalDebit);
+          }
         }
-      } else if (purchaseResult.isPending) {
+
+        if (mounted) {
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          if (success) {
+            _phoneController.clear();
+            await showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ReceiptModal(
+                serviceTitle: serviceTitle,
+                recipient: recipientPhone,
+                amount: amount,
+                transactionId: actualTransactionId ?? 'CK-UNKNOWN',
+                providerName: 'WAEC',
+                token: pinDetails,
+              ),
+            );
+            if (mounted) {
+              Navigator.of(context).pop(); // Go back to home
+            }
+          }
+        }
+      } else if (isActuallyPending) {
         final ticketId = await walletProvider.logPendingTransaction(
           amount: totalDebit,
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
-          errorReason: purchaseResult.error ?? 'Transaction is pending network operator confirmation.',
-          vendorReference: purchaseResult.transactionId,
+          errorReason: actualError ?? 'Transaction is pending network operator confirmation.',
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
-          PendingDialog.show(
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          await PendingDialog.show(
             context,
             title: 'Transaction Pending',
             message: 'Your WAEC e-PIN purchase is being processed by the operator. Please do not retry. You can check status in transaction history.',
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
           _phoneController.clear();
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       } else {
-        final errorMsg = purchaseResult.error ?? 'Transaction failed. Please try again.';
+        final errorMsg = actualError ?? 'Transaction failed. Please try again.';
         final ticketId = await walletProvider.logFailedTransaction(
           amount: totalDebit,
           serviceName: serviceTitle,
           billDetails: serviceDetail,
           category: TransactionCategory.bills,
           errorReason: errorMsg,
-          vendorReference: purchaseResult.transactionId,
+          vendorReference: actualTransactionId,
         );
 
         if (mounted) {
-          FailureDialog.show(
+          BrandedLoadingOverlay.hide(context);
+          setState(() {
+            _isPaying = false;
+          });
+
+          await FailureDialog.show(
             context,
             title: 'Purchase Failed',
             message: errorMsg,
             ticketId: ticketId ?? '#TKT-UNKNOWN',
           );
+          if (mounted) {
+            Navigator.of(context).pop(); // Go back to home
+          }
         }
       }
     }
@@ -162,6 +257,29 @@ class _WaecScreenState extends State<WaecScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.budget != null) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentLime.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accentLime.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.briefcase, color: AppColors.primaryForest),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '💼 Paying from budget: ${widget.budget!.title} (Available: ₦${widget.budget!.amount})',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryForest),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Text(
                 'Select e-PIN Package',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -194,7 +312,7 @@ class _WaecScreenState extends State<WaecScreen> {
                       final item = _packages[key]!;
                       return DropdownMenuItem<String>(
                         value: key,
-                        child: Text('${item['name']} - ₦${CurrencyFormatter.format(item['amount'])}'),
+                        child: Text('${item['name']} - ${CurrencyFormatter.format(item['amount'])}'),
                       );
                     }).toList(),
                     onChanged: (newValue) {
@@ -231,24 +349,53 @@ class _WaecScreenState extends State<WaecScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isPaying ? null : () => _submitPayment(walletProvider),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryForest,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Purchase e-PIN',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+              const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final packageInfo = _packages[_selectedPackage]!;
+                  final double amount = packageInfo['amount'];
+                  final double fee = walletProvider.cableFee;
+                  final double totalAmount = amount + fee;
+
+                  final double cashbackApplied = _useCashback 
+                      ? (totalAmount < walletProvider.cashbackBalance ? totalAmount : walletProvider.cashbackBalance)
+                      : 0.0;
+                  final double walletDeduction = totalAmount - cashbackApplied;
+
+                  return Column(
+                    children: [
+                      CashbackToggleWidget(
+                        totalAmount: totalAmount,
+                        cashbackBalance: walletProvider.cashbackBalance,
+                        value: _useCashback,
+                        onChanged: (val) {
+                          setState(() {
+                            _useCashback = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isPaying ? null : () => _submitPayment(walletProvider),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryForest,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            'Purchase e-PIN (${CurrencyFormatter.format(walletDeduction)})',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
               ),
             ],
           ),

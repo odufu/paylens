@@ -114,144 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hello Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            context
-                                .findAncestorStateOfType<
-                                  MainNavigationHolderState
-                                >()
-                                ?.onTabSelected(4);
-                          },
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.accentLime,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: authProvider.avatarUrl != null
-                                  ? CachedNetworkImage(
-                                      imageUrl: authProvider.avatarUrl!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        color: AppColors.primaryForest,
-                                        child: const Center(
-                                          child: SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.5,
-                                              color: AppColors.accentLime,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) =>
-                                          _buildInitialsAvatar(
-                                        shortInitials,
-                                      ),
-                                    )
-                                  : _buildInitialsAvatar(shortInitials),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello,',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: AppColors.textLightGrey.withValues(
-                                  alpha: 0.8,
-                                ),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              authProvider.userFullName.split(' ').first,
-                              style: textTheme.titleMedium?.copyWith(
-                                color: AppColors.textLight,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    // Notification Bell
-                    Consumer<NotificationProvider>(
-                      builder: (context, notifProvider, child) {
-                        final count = notifProvider.unreadCount;
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const NotificationScreen(),
-                              ),
-                            );
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                ),
-                                child: const Icon(
-                                  LucideIcons.bell,
-                                  color: AppColors.textLight,
-                                  size: 20,
-                                ),
-                              ),
-                              if (count > 0)
-                                Positioned(
-                                  top: -2,
-                                  right: -2,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.errorRed,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 8),
 
                 // Wallet Balance Display (Centered, Minimal)
                 Center(
@@ -293,65 +156,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 6),
-                      GestureDetector(
-                        onTap: () =>
-                            _showRedeemPointsDialog(context, walletProvider),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentLime.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppColors.accentLime.withValues(
-                                alpha: 0.3,
-                              ),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                LucideIcons.sparkles,
-                                color: AppColors.accentLime,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${walletProvider.loyaltyPoints} LensPoints',
-                                style: const TextStyle(
-                                  color: AppColors.accentLime,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accentLime,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'REDEEM',
-                                  style: TextStyle(
-                                    color: AppColors.primaryForest,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -456,6 +260,139 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF003D26),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                context
+                    .findAncestorStateOfType<MainNavigationHolderState>()
+                    ?.onTabSelected(4);
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: authProvider.avatarUrl != null
+                    ? Image.network(
+                        authProvider.avatarUrl!,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => _buildInitialsAvatar(shortInitials),
+                      )
+                    : _buildInitialsAvatar(shortInitials),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Hello, ${authProvider.userFullName.split(' ').first}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // LensPoints Widget
+          GestureDetector(
+            onTap: () => _showRedeemPointsDialog(context, walletProvider),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.accentLime.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.accentLime.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    LucideIcons.sparkles,
+                    color: AppColors.accentLime,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${walletProvider.loyaltyPoints}',
+                    style: const TextStyle(
+                      color: AppColors.accentLime,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Notification Bell
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, child) {
+              final count = notifProvider.unreadCount;
+              return GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationScreen(),
+                    ),
+                  );
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                      child: const Icon(
+                        LucideIcons.bell,
+                        color: AppColors.textLight,
+                        size: 18,
+                      ),
+                    ),
+                    if (count > 0)
+                      Positioned(
+                        top: 2,
+                        right: 14,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.errorRed,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Stack(
           children: [
@@ -1492,7 +1429,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       children: [
                                         Text(
                                           walletProvider.isBalanceVisible
-                                              ? '₦${CurrencyFormatter.format(walletProvider.balance)}'
+                                              ? CurrencyFormatter.format(walletProvider.balance)
                                               : '₦ ••••••••',
                                           style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                                         ),
@@ -1534,30 +1471,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ],
                             ),
                             const SizedBox(height: 24),
-                            // Virtual Accounts Row
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: _buildDesktopVirtualAccountCard(
-                                    bankName: 'WEMA BANK (DEDICATED)',
-                                    accountNumber: walletProvider.wemaAccountNumber,
-                                    isVerified: walletProvider.kycVerified,
-                                    textTheme: textTheme,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: _buildDesktopVirtualAccountCard(
-                                    bankName: 'STERLING BANK',
-                                    accountNumber: walletProvider.sterlingAccountNumber,
-                                    isVerified: walletProvider.kycVerified,
-                                    textTheme: textTheme,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
                             // Actions Row
                             Row(
                               children: [
@@ -1570,23 +1483,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.accentLime,
                                     foregroundColor: AppColors.primaryForest,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const TransferScreen()),
-                                    );
-                                  },
-                                  icon: const Icon(LucideIcons.send, size: 16),
-                                  label: const Text('Send Money'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white10,
-                                    foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                     textStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -1846,7 +1742,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Click here to complete BVN verification to activate transfer virtual bank accounts.',
+                    'Click here to complete BVN verification to increase transaction limits and secure your account.',
                     style: TextStyle(fontSize: 12, color: AppColors.textGrey),
                   ),
                 ],

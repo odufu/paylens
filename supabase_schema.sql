@@ -78,6 +78,18 @@ CREATE TABLE IF NOT EXISTS public.support_tickets (
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'escalated' CHECK (status IN ('escalated', 'resolved', 'closed')),
+    admin_unread BOOLEAN NOT NULL DEFAULT false,
+    user_unread BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 4.5. Create Support Messages Table for E2E Live Chat
+CREATE TABLE IF NOT EXISTS public.support_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id TEXT REFERENCES public.support_tickets(id) ON DELETE CASCADE NOT NULL,
+    sender_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    is_admin BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -86,6 +98,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.beneficiaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
 
 -- 6. RLS Policies (Cleanly drop existing policies and recreate them to prevent duplicate errors)
 
@@ -94,6 +107,8 @@ DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Allow public insert on sign up trigger" ON public.profiles;
 DROP POLICY IF EXISTS "Users can insert/upsert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can update all profiles" ON public.profiles;
 
 CREATE POLICY "Users can view their own profile" 
     ON public.profiles FOR SELECT 
@@ -107,9 +122,19 @@ CREATE POLICY "Users can insert/upsert their own profile"
     ON public.profiles FOR INSERT
     WITH CHECK (auth.uid() = id);
 
+CREATE POLICY "Admins can view all profiles" 
+    ON public.profiles FOR SELECT 
+    USING (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com');
+
+CREATE POLICY "Admins can update all profiles" 
+    ON public.profiles FOR UPDATE 
+    USING (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com');
+
 -- Transactions Policies
 DROP POLICY IF EXISTS "Users can view their own transactions" ON public.transactions;
 DROP POLICY IF EXISTS "Users can insert their own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Admins can view all transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Admins can update all transactions" ON public.transactions;
 
 CREATE POLICY "Users can view their own transactions" 
     ON public.transactions FOR SELECT 
@@ -118,6 +143,14 @@ CREATE POLICY "Users can view their own transactions"
 CREATE POLICY "Users can insert their own transactions" 
     ON public.transactions FOR INSERT 
     WITH CHECK (auth.uid() = profile_id);
+
+CREATE POLICY "Admins can view all transactions" 
+    ON public.transactions FOR SELECT 
+    USING (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com');
+
+CREATE POLICY "Admins can update all transactions" 
+    ON public.transactions FOR UPDATE 
+    USING (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com');
 
 -- Beneficiaries Policies
 DROP POLICY IF EXISTS "Users can view their own beneficiaries" ON public.beneficiaries;
@@ -134,14 +167,38 @@ CREATE POLICY "Users can manage their own beneficiaries"
 -- Support Tickets Policies
 DROP POLICY IF EXISTS "Users can view their own support tickets" ON public.support_tickets;
 DROP POLICY IF EXISTS "Users can create support tickets" ON public.support_tickets;
+DROP POLICY IF EXISTS "Admins/Users can update support tickets" ON public.support_tickets;
 
 CREATE POLICY "Users can view their own support tickets" 
     ON public.support_tickets FOR SELECT 
-    USING (auth.uid() = profile_id);
+    USING (auth.uid() = profile_id OR (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com'));
 
 CREATE POLICY "Users can create support tickets" 
     ON public.support_tickets FOR INSERT 
-    WITH CHECK (auth.uid() = profile_id);
+    WITH CHECK (auth.uid() = profile_id OR (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com'));
+
+CREATE POLICY "Admins/Users can update support tickets" 
+    ON public.support_tickets FOR UPDATE 
+    USING (auth.uid() = profile_id OR (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com'))
+    WITH CHECK (auth.uid() = profile_id OR (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com'));
+
+-- Support Messages Policies
+DROP POLICY IF EXISTS "Users can view support messages" ON public.support_messages;
+DROP POLICY IF EXISTS "Users can insert support messages" ON public.support_messages;
+
+CREATE POLICY "Users can view support messages" 
+    ON public.support_messages FOR SELECT 
+    USING (
+        auth.uid() IN (SELECT profile_id FROM public.support_tickets WHERE id = ticket_id) OR 
+        (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com')
+    );
+
+CREATE POLICY "Users can insert support messages" 
+    ON public.support_messages FOR INSERT 
+    WITH CHECK (
+        auth.uid() IN (SELECT profile_id FROM public.support_tickets WHERE id = ticket_id) OR 
+        (auth.jwt() ->> 'email' LIKE '%admin%' OR auth.jwt() ->> 'email' LIKE '%@paylenses.com')
+    );
 
 -- 7. Trigger to automatically create a profile entry when a user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -412,5 +469,45 @@ ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_markup_percent NUM
 ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
 ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_markup_percent NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
 ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_markup_flat NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
+
+-- Alter fees_config table to add total provider commissions and admin share splits
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_mtn_total_comm NUMERIC(5,2) DEFAULT 3.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_mtn_admin_share NUMERIC(5,2) DEFAULT 2.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_glo_total_comm NUMERIC(5,2) DEFAULT 8.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_glo_admin_share NUMERIC(5,2) DEFAULT 5.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_9mobile_total_comm NUMERIC(5,2) DEFAULT 7.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_9mobile_admin_share NUMERIC(5,2) DEFAULT 4.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_airtel_total_comm NUMERIC(5,2) DEFAULT 3.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS airtime_airtel_admin_share NUMERIC(5,2) DEFAULT 2.00 NOT NULL;
+
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_mtn_total_comm NUMERIC(5,2) DEFAULT 3.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_mtn_admin_share NUMERIC(5,2) DEFAULT 2.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_glo_total_comm NUMERIC(5,2) DEFAULT 4.50 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_glo_admin_share NUMERIC(5,2) DEFAULT 3.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_9mobile_total_comm NUMERIC(5,2) DEFAULT 7.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_9mobile_admin_share NUMERIC(5,2) DEFAULT 4.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_airtel_total_comm NUMERIC(5,2) DEFAULT 3.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS data_airtel_admin_share NUMERIC(5,2) DEFAULT 2.00 NOT NULL;
+
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_total_comm NUMERIC(5,2) DEFAULT 0.01 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS electricity_admin_share NUMERIC(5,2) DEFAULT 0.005 NOT NULL;
+
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_total_comm NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+ALTER TABLE public.fees_config ADD COLUMN IF NOT EXISTS cable_admin_share NUMERIC(5,2) DEFAULT 0.00 NOT NULL;
+
+-- Update the seeded 'main' configurations to match provider specifications
+UPDATE public.fees_config
+SET 
+  airtime_mtn_total_comm = 3.00, airtime_mtn_admin_share = 2.00,
+  airtime_glo_total_comm = 8.00, airtime_glo_admin_share = 5.00,
+  airtime_9mobile_total_comm = 7.00, airtime_9mobile_admin_share = 4.00,
+  airtime_airtel_total_comm = 3.00, airtime_airtel_admin_share = 2.00,
+  data_mtn_total_comm = 3.00, data_mtn_admin_share = 2.00,
+  data_glo_total_comm = 4.50, data_glo_admin_share = 3.00,
+  data_9mobile_total_comm = 7.00, data_9mobile_admin_share = 4.00,
+  data_airtel_total_comm = 3.00, data_airtel_admin_share = 2.00,
+  electricity_total_comm = 0.01, electricity_admin_share = 0.005,
+  cable_total_comm = 0.00, cable_admin_share = 0.00
+WHERE id = 'main';
 
 
